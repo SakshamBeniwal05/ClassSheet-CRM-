@@ -1,0 +1,187 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  Owner
+  Admin
+  Employee
+}
+
+enum State {
+  Consulting
+  Negotiation
+  Under_Process
+  Completed_Loss
+  Completed_Win
+}
+
+// -------------------------------------------------------------------------
+// Users
+// -------------------------------------------------------------------------
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  email          String   @unique @db.VarChar(255)
+  role           Role
+  passwordHash   String
+  organisationId String?  @map("organisation_id") @db.Uuid
+  refreshToken   String?  @map("refresh_token")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  organisation Organisation? @relation("OrgMembers", fields: [organisationId], references: [id], onDelete: SetNull)
+
+  ownedOrganisation Organisation? @relation("OrgOwner")
+
+  dealsAuthored Deal[]   @relation("DealAuthor")
+  clientsAdded  Client[] @relation("ClientAuthor")
+  notesAuthored Note[]   @relation("NoteAuthor")
+  mediaUploaded Media[]  @relation("MediaUploader")
+  reminders     Reminder[]
+
+  @@map("users")
+}
+
+// -------------------------------------------------------------------------
+// Organisation
+// -------------------------------------------------------------------------
+
+model Organisation {
+  id               String    @id @default(uuid()) @db.Uuid
+  organisationName String    @map("organisation_name")
+  ownerId          String    @unique @map("owner_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  inviteToken      String?   @map("invite_token")
+  inviteTimestamps DateTime? @map("invite_timestamps") @db.Timestamptz(6)
+
+  owner User @relation("OrgOwner", fields: [ownerId], references: [id])
+
+  members User[]   @relation("OrgMembers")
+  clients Client[] @relation("ClientOrganisation")
+  deals   Deal[]   @relation("DealOrganisation")
+
+  @@map("organisation")
+}
+
+// -------------------------------------------------------------------------
+// Deals
+// -------------------------------------------------------------------------
+
+model Deal {
+  id               String    @id @default(uuid()) @db.Uuid
+  clientId         String?   @map("client_id") @db.Uuid
+  authorId         String?   @map("author_id") @db.Uuid
+  scheduled        DateTime? @db.Timestamptz(6)
+  stateOfDeal      State     @map("state_of_deal")
+  dealOrganisation String    @map("deal_organisation") @db.Uuid
+  amount           Decimal   @db.Decimal(12, 2)
+  estimatedCost    Decimal?  @map("estimated_cost") @db.Decimal(12, 2)
+  currency         String    @default("INR") @db.VarChar(10)
+
+  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  author       User?        @relation("DealAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  organisation Organisation @relation("DealOrganisation", fields: [dealOrganisation], references: [id], onDelete: Cascade)
+
+  notes     Note[]
+  media     Media[]
+  reminders Reminder[]
+
+  @@map("deals")
+}
+
+// -------------------------------------------------------------------------
+// Client
+// -------------------------------------------------------------------------
+
+model Client {
+  id                         String  @id @default(uuid()) @db.Uuid
+  name                       String
+  email                      String  @db.VarChar(255)
+  role                       String? // job title, e.g. "CEO", "Purchasing Manager"
+  authorId                   String? @map("author_id") @db.Uuid
+  dealHandlingOrganisationId String  @map("deal_handling_organisation_id") @db.Uuid
+
+  author                   User?        @relation("ClientAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  dealHandlingOrganisation Organisation @relation("ClientOrganisation", fields: [dealHandlingOrganisationId], references: [id], onDelete: Cascade)
+
+  deals     Deal[]
+  reminders Reminder[]
+
+  @@map("client")
+}
+
+// -------------------------------------------------------------------------
+// Notes
+// -------------------------------------------------------------------------
+
+model Note {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String   @db.VarChar(255)
+  body      String   @db.Text // Content of the post
+  authorId  String?  @map("author_id") @db.Uuid
+  status    String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  dealId    String   @map("deal_id") @db.Uuid
+
+  author User? @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  deal   Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  media Media[]
+
+  @@map("notes")
+}
+
+// -------------------------------------------------------------------------
+// Media
+// -------------------------------------------------------------------------
+
+model Media {
+  id         String   @id @default(uuid()) @db.Uuid
+  mediaUrl   String   @map("media_url") @db.Text
+  dealId     String   @map("deal_id") @db.Uuid
+  noteId     String?  @map("note_id") @db.Uuid
+  fileName   String?  @map("file_name") @db.VarChar(255)
+  uploaderId String?  @map("uploader_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  deal     Deal  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  note     Note? @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  uploader User? @relation("MediaUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+
+  @@map("media")
+}
+
+// -------------------------------------------------------------------------
+// Reminders
+// -------------------------------------------------------------------------
+
+model Reminder {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  clientId           String?  @map("client_id") @db.Uuid
+  dealId             String?  @map("deal_id") @db.Uuid
+  title              String   @db.VarChar(255)
+  description        String?  @db.Text
+  scheduledTriggerAt DateTime @map("scheduled_trigger_at") @db.Timestamptz(6)
+  status             String   @db.VarChar(50)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@map("reminders")
+}
