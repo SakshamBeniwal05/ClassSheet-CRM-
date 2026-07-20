@@ -46,7 +46,7 @@ model User {
   ownedOrganisation Organisation? @relation("OrgOwner")
 
   dealsAuthored Deal[]   @relation("DealAuthor")
-  clientsAdded  Client[] @relation("ClientAuthor")
+  clientsAdded  Client[] @relation("ClientAuthor") 
   notesAuthored Note[]   @relation("NoteAuthor")
   mediaUploaded Media[]  @relation("MediaUploader")
   reminders     Reminder[]

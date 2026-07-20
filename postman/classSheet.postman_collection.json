@@ -1,0 +1,661 @@
+{
+	"info": {
+		"_postman_id": "8c0a87a2-f8b8-4d57-8fb9-8a4f89d31195",
+		"name": "classSheet CRM API",
+		"description": "Postman Collection for ClassSheet CRM with auth, clients, deals, organisation, notes, media, and reminders.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Auth / Login & Register",
+			"description": "Authentication and user onboarding routes",
+			"item": [
+				{
+					"name": "Register with New Organisation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"organisationName\": \"Acme Industries\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/registerWithNewOrganisation",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "registerWithNewOrganisation"]
+						},
+						"description": "Register a new Owner user along with a new organisation."
+					},
+					"response": []
+				},
+				{
+					"name": "New User Registration (Employee)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"password\": \"SecurePassword456!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/newUserRegistration",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "newUserRegistration"]
+						},
+						"description": "Register a regular employee account without an organisation."
+					},
+					"response": []
+				},
+				{
+					"name": "Login User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "login"]
+						},
+						"description": "Log in an existing user and receive JWT access token and HTTP-only refresh cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Logout User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "logout"]
+						},
+						"description": "Log out user, clearing refresh token and cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh Access Token",
+					"request": {
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/refresh",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "refresh"]
+						},
+						"description": "Silently mint a new access token using the HTTP-only refresh cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Register Organisation for Owner without Org",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orgName\": \"Global Corp\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/userOwnnerWithoutOrg",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "userOwnnerWithoutOrg"]
+						},
+						"description": "Register an organisation for an existing Owner user who has no organisation."
+					},
+					"response": []
+				},
+				{
+					"name": "Join Organisation via Invite Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"inviteToken\": \"your-invite-token-here\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/joinOrganisation",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "joinOrganisation"]
+						},
+						"description": "Allows a user to join an organisation using a valid invite token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Clients",
+			"description": "Client management endpoints",
+			"item": [
+				{
+					"name": "Create Client",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"TechCorp Inc\",\n  \"email\": \"contact@techcorp.com\",\n  \"role\": \"Purchasing Manager\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/clients",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "clients"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Clients",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/clients",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "clients"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/clients/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "clients", ":id"],
+							"variable": [{ "key": "id", "value": "client-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Client",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"TechCorp Global\",\n  \"role\": \"VP Procurement\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/clients/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "clients", ":id"],
+							"variable": [{ "key": "id", "value": "client-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Client",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/clients/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "clients", ":id"],
+							"variable": [{ "key": "id", "value": "client-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Deals",
+			"description": "Sales deals endpoints",
+			"item": [
+				{
+					"name": "Create Deal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"clientId\": \"client-uuid\",\n  \"amount\": 50000.00,\n  \"estimatedCost\": 20000.00,\n  \"stateOfDeal\": \"Consulting\",\n  \"currency\": \"INR\",\n  \"scheduled\": \"2026-08-01T10:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/deals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "deals"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Deals",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/deals",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "deals"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Deal By ID",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/deals/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "deals", ":id"],
+							"variable": [{ "key": "id", "value": "deal-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Deal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 65000.00,\n  \"stateOfDeal\": \"Negotiation\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/deals/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "deals", ":id"],
+							"variable": [{ "key": "id", "value": "deal-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Deal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/deals/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "deals", ":id"],
+							"variable": [{ "key": "id", "value": "deal-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Organisation",
+			"description": "Organisation management endpoints",
+			"item": [
+				{
+					"name": "Get Organisation Details",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/organisation",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "organisation"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Invite Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"url": {
+							"raw": "{{baseUrl}}/api/organisation/invite-token",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "organisation", "invite-token"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Organisation Members",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/organisation/members",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "organisation", "members"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Member",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/organisation/members/:memberId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "organisation", "members", ":memberId"],
+							"variable": [{ "key": "memberId", "value": "user-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notes",
+			"description": "Notes endpoints",
+			"item": [
+				{
+					"name": "Create Note",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Initial Client Meeting\",\n  \"body\": \"Discussed budget expectations and timeline.\",\n  \"dealId\": \"deal-uuid\",\n  \"status\": \"Completed\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notes",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notes"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Notes By Deal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/notes/deal/:dealId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notes", "deal", ":dealId"],
+							"variable": [{ "key": "dealId", "value": "deal-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Note",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Client Meeting Notes\",\n  \"body\": \"Client agreed to proposal version 2.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notes/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notes", ":id"],
+							"variable": [{ "key": "id", "value": "note-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Note",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/notes/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "notes", ":id"],
+							"variable": [{ "key": "id", "value": "note-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Media",
+			"description": "Media attachments endpoints",
+			"item": [
+				{
+					"name": "Upload Media Record",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mediaUrl\": \"https://storage.example.com/contracts/contract_101.pdf\",\n  \"dealId\": \"deal-uuid\",\n  \"fileName\": \"contract_101.pdf\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Media By Deal",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/media/deal/:dealId",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "deal", ":dealId"],
+							"variable": [{ "key": "dealId", "value": "deal-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Media Record",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/media/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", ":id"],
+							"variable": [{ "key": "id", "value": "media-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Reminders",
+			"description": "User reminders endpoints",
+			"item": [
+				{
+					"name": "Create Reminder",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Follow up on proposal\",\n  \"description\": \"Call purchasing manager regarding contract revision.\",\n  \"scheduledTriggerAt\": \"2026-08-02T09:00:00Z\",\n  \"status\": \"Pending\",\n  \"clientId\": \"client-uuid\",\n  \"dealId\": \"deal-uuid\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reminders",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "reminders"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Reminders",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/reminders",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "reminders"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Reminder Status",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"Completed\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/reminders/:id/status",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "reminders", ":id", "status"],
+							"variable": [{ "key": "id", "value": "reminder-uuid" }]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Reminder",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "DELETE",
+						"url": {
+							"raw": "{{baseUrl}}/api/reminders/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "reminders", ":id"],
+							"variable": [{ "key": "id", "value": "reminder-uuid" }]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "jwt_token_here",
+			"type": "string"
+		}
+	]
+}
