@@ -1,14 +1,19 @@
 import type { Request, Response } from "express";
-import { prisma } from "../login and register/controller.registration.js";
 import type { State } from "../../generated/prisma/enums.js";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
+import { prisma } from "../../main.js";
 
 const createDeal = async (req: Request, res: Response) => {
     try {
-        const { clientId, amount, estimatedCost, stateOfDeal, currency, scheduled } = req.body;
+        const { clientMail, amount, estimatedCost, stateOfDeal, currency, scheduled } = req.body;
         const authorId = req.user?.userId;
         const organisationId = req.user?.organisationId;
+        const clientId = await prisma.client.findFirst({where:{email:clientMail},select:{id:true}})
+
+        if(clientId){
+            throw new ApiError(400,"Client Doesnt Exist on this maill")
+        }
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation to create deals");
@@ -36,6 +41,7 @@ const createDeal = async (req: Request, res: Response) => {
         });
 
         return res.status(201).json(new ApiResponse(201, { deal }, "Deal created successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(error.statuscode).json({ error: error.message });
@@ -67,6 +73,7 @@ const getDeals = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json(new ApiResponse(200, { deals }, "Deals fetched successfully"));
+        
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(error.statuscode).json({ error: error.message });

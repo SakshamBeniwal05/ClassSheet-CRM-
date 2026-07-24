@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
-import { prisma } from "../login and register/controller.registration.js";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
+import { prisma } from "../../main.js";
 
 const createClient = async (req: Request, res: Response) => {
     try {

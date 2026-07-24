@@ -1,15 +1,11 @@
-import { PrismaClient, Role } from "../generated/prisma/client.js";
-import { PrismaPg } from "@prisma/adapter-pg";
 import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import ApiError from "../utils/utils.api.error.js";
-import ApiResponse from "../utils/utils.api.response.js";
 import { newLoginTokens, refreshCookieOptions } from "./controller.active.js";
+import type { Role } from "../../generated/prisma/enums.js";
+import ApiError from "../../utils/utils.api.error.js";
+import ApiResponse from "../../utils/utils.api.response.js";
+import { prisma } from "../../main.js";
 
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-// Pass the adapter instance to PrismaClient
-export const prisma = new PrismaClient({ adapter });
 
 // helper function
 
@@ -47,6 +43,7 @@ const registerUser = async (name: string, email: string, role: Role, password: s
         })
         return createdUser;
     } catch (error) {
+        if (error instanceof ApiError) throw error;
         throw new ApiError(400, "Cant create registerUser")
     }
 }
@@ -58,6 +55,13 @@ const registerOrganisation = async (organisationName: string, ownerId: string) =
         }
         if (await prisma.organisation.findFirst({ where: { organisationName } })) {
             throw new ApiError(400, "Organisation already exists")
+        }
+        const owner = await prisma.user.findUnique({ where: { id: ownerId } })
+        if (!owner) {
+            throw new ApiError(404, "User not found");
+        }
+        if (owner?.organisationId) {
+            throw new ApiError(400, "User already part of a Organisation")
         }
         const newOrg = await prisma.organisation.create({
             data: {
@@ -76,6 +80,7 @@ const registerOrganisation = async (organisationName: string, ownerId: string) =
         return createdOrg;
 
     } catch (error) {
+        if (error instanceof ApiError) throw error;
         throw new ApiError(400, "Cant create registerOrganisation")
     }
 }
@@ -98,10 +103,11 @@ const registerWithNewOrganisation = async (req: Request, res: Response) => {
             data: { organisationId: createdOrg?.id || "" },
             select: { id: true, name: true, email: true, role: true, organisationId: true }
         });
-        const {refreshToken,accessToken} = await newLoginTokens(updatedUser)
+        const { refreshToken, accessToken } = await newLoginTokens(updatedUser)
 
-        return res.status(201).cookie("refreshToken",refreshToken,refreshCookieOptions).json(
-            new ApiResponse(201, { accessToken, user: {
+        return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
+            new ApiResponse(201, {
+                accessToken, user: {
                     id: updatedUser?.id,
                     name: updatedUser?.name,
                     email: updatedUser?.email,
@@ -122,10 +128,11 @@ const newUserRegistration = async (req: Request, res: Response) => {
         const { name, email, password, } = req.body;
         const createdUser = await registerUser(name, email, "Employee", password)
 
-        const {refreshToken,accessToken} = await newLoginTokens(createdUser)
+        const { refreshToken, accessToken } = await newLoginTokens(createdUser)
 
-        return res.status(201).cookie("refreshToken",refreshToken,refreshCookieOptions).json(
-            new ApiResponse(201, { accessToken, user: {
+        return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
+            new ApiResponse(201, {
+                accessToken, user: {
                     id: createdUser?.id,
                     name: createdUser?.name,
                     email: createdUser?.email,
@@ -145,7 +152,7 @@ const joinOrganisation = async (req: Request, res: Response) => {
 
     try {
         const { inviteToken } = req.body;
-        const userId = req.user.userId ;
+        const userId = req.user.userId;
         const userRole = req.user.role;
         const userOrgId = req.user.organisationId
 

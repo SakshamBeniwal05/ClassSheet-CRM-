@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { prisma } from "../login and register/controller.registration.js";
+import { prisma } from "../../main.js";
 import crypto from "crypto";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";

@@ -1,10 +1,10 @@
+import { prisma } from "../../main.js";
 import type { NextFunction, Request, Response } from "express";
-import { prisma } from "./controller.registration.js";
 import bcrypt from "bcrypt";
-import jwt, { type SignOptions } from "jsonwebtoken"
-import type { Role } from "../generated/prisma/enums.js";
-import ApiError from "../utils/utils.api.error.js";
-import ApiResponse from "../utils/utils.api.response.js";
+import jwt, { type SignOptions } from "jsonwebtoken";
+import type { Role } from "../../generated/prisma/enums.js";
+import ApiError from "../../utils/utils.api.error.js";
+import ApiResponse from "../../utils/utils.api.response.js";
 
 // -------------------------------------------------------------------------
 // Shared cookie options — defined once so login/logout never drift apart
@@ -23,10 +23,9 @@ export const refreshCookieOptions = {
 
 // Access token: SHORT-lived, carries role/org, sent in JSON body,
 // read/attached manually by the frontend on every request (Authorization header).
-// Re-fetches the user from DB so role/org are always current at refresh time.
+// Re-fetches the user from DB so role/org are always current at mint time.
 const newAccessToken = async (id: string) => {
     const user = await prisma.user.findUnique({ where: { id } });
-
     if (!user?.refreshToken) {
         throw new ApiError(401, "Session expired, please log in again");
     }
@@ -34,18 +33,22 @@ const newAccessToken = async (id: string) => {
     const accessToken: string = jwt.sign(
         { userId: user.id, role: user.role, organisationId: user.organisationId },
         process.env.ACCESS_TOKEN_VALUE as string,
-        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY as SignOptions['expiresIn'] }
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY as SignOptions["expiresIn"] }
     );
 
     return accessToken;
 };
 
 // Refresh token: LONG-lived, minimal payload (just enough to identify the user),
-// stored hashed... (see note below) in DB, sent ONLY via httpOnly cookie.
+// stored in DB, sent ONLY via httpOnly cookie.
+// NOTE: currently stored in DB as plaintext — worth hashing before storing (like a
+// password) once you're past the "get it working" stage, so a DB leak doesn't hand
+// out every active session directly.
 export const newLoginTokens = async (user: { id: string; role: Role; organisationId: string | null }) => {
-    const refreshToken: string = jwt.sign({ userId: user.id },
+    const refreshToken: string = jwt.sign(
+        { userId: user.id },
         process.env.REFRESH_TOKEN_VALUE as string,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY as SignOptions['expiresIn'] }
+        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"] }
     );
 
     await prisma.user.update({
@@ -56,6 +59,42 @@ export const newLoginTokens = async (user: { id: string; role: Role; organisatio
     const accessToken = await newAccessToken(user.id);
 
     return { refreshToken, accessToken };
+};
+
+// -------------------------------------------------------------------------
+// Shared helper — the ONLY place refresh-token verification + DB cross-check
+// happens. Used exclusively by `verification` below. Not exposed as its own
+// route: this project doesn't need proactive/explicit refresh right now —
+// `verification` already handles the one case that matters (access token
+// expires mid-use, gets silently refreshed inline, original request continues).
+// -------------------------------------------------------------------------
+
+const getNewAccessTokenFromRefreshCookie = async (refreshTokenCookie: string | undefined) => {
+    if (!refreshTokenCookie) {
+        throw new ApiError(401, "No refresh token, please log in again");
+    }
+
+    let decoded: { userId: string };
+    try {
+        decoded = jwt.verify(
+            refreshTokenCookie,
+            process.env.REFRESH_TOKEN_VALUE as string
+        ) as { userId: string };
+    } catch {
+        throw new ApiError(401, "Invalid or expired refresh token, please log in again");
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+
+    // The token stored in DB must match the one presented — if a user logged
+    // out (or logged in elsewhere, overwriting it), this cookie is now stale
+    // even if the JWT itself would still technically verify.
+    if (!user || user.refreshToken !== refreshTokenCookie) {
+        throw new ApiError(401, "Session expired, please log in again");
+    }
+
+    const accessToken = await newAccessToken(user.id);
+    return { accessToken, user };
 };
 
 // -------------------------------------------------------------------------
@@ -75,26 +114,35 @@ const loginUser = async (req: Request, res: Response) => {
         // Deliberately identical message for "no such email" and "wrong password" —
         // prevents leaking which emails are registered.
         if (!user) {
-            throw new ApiError(401, "No user exist on this email");
+            throw new ApiError(401, "Invalid email or password");
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
         if (!isPasswordValid) {
-            throw new ApiError(401, "Invalid password");
+            throw new ApiError(401, "Invalid email or password");
         }
 
         const { refreshToken, accessToken } = await newLoginTokens(user);
 
-        return res.status(200).cookie("refreshToken", refreshToken, refreshCookieOptions)
-            .json(new ApiResponse(200, {
-                accessToken, user: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role,
-                    organisationId: user.organisationId,
-                }
-            }, "Logged in successfully"));
+        return res
+            .status(200)
+            .cookie("refreshToken", refreshToken, refreshCookieOptions)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        accessToken,
+                        user: {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: user.role,
+                            organisationId: user.organisationId,
+                        },
+                    },
+                    "Logged in successfully"
+                )
+            );
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(400).json({ error: error.message });
@@ -116,7 +164,7 @@ const logoutUser = async (req: Request, res: Response) => {
 
         return res
             .status(200)
-            .clearCookie("refreshToken", refreshCookieOptions)
+            .clearCookie("refreshToken", refreshCookieOptions) // was "accessToken" — access token was never a cookie
             .json(new ApiResponse(200, {}, "Logged out successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
@@ -126,48 +174,12 @@ const logoutUser = async (req: Request, res: Response) => {
     }
 };
 
-// Silently mint a new access token using the refresh token cookie.
-// Frontend calls this when an API request comes back 401 (access token expired).
-const refreshAccessToken = async (req: Request, res: Response) => {
-    try {
-        const incomingRefreshToken = req.cookies?.refreshToken;
-
-        if (!incomingRefreshToken) {
-            throw new ApiError(401, "No refresh token, please log in again");
-        }
-
-        let decoded: { userId: string };
-        try {
-            decoded = jwt.verify(
-                incomingRefreshToken,
-                process.env.REFRESH_TOKEN_VALUE as string
-            ) as { userId: string };
-        } catch {
-            throw new ApiError(401, "Invalid or expired refresh token, please log in again");
-        }
-
-        const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-
-        // The token stored in DB must match the one presented — if a user logged
-        // out (or logged in elsewhere, overwriting it), this cookie is now stale.
-        if (!user || user.refreshToken !== incomingRefreshToken) {
-            throw new ApiError(401, "Session expired, please log in again");
-        }
-
-        const accessToken = await newAccessToken(user.id);
-
-        return res.status(200).json(
-            new ApiResponse(200, { accessToken }, "Access token refreshed")
-        );
-    } catch (error) {
-        if (error instanceof ApiError) {
-            return res.status(400).json({ error: error.message });
-        }
-        return res.status(500).json({ error: "Something went wrong" });
-    }
-};
-
-
+// -------------------------------------------------------------------------
+// Middleware — verifies the access token; if it's specifically EXPIRED
+// (not tampered/invalid), silently refreshes inline using the shared helper
+// and lets the original request continue. This is the single place the
+// refresh-token flow lives — no separate /refresh-token endpoint needed.
+// -------------------------------------------------------------------------
 
 const verification = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -181,9 +193,14 @@ const verification = async (req: Request, res: Response, next: NextFunction) => 
 
         try {
             // ---- happy path: access token is still valid ----
-            const decoded = jwt.verify(token as string, process.env.ACCESS_TOKEN_VALUE as string)
+            const decoded = jwt.verify(token as string, process.env.ACCESS_TOKEN_VALUE as string) as { userId: string, role: Role, organisationId: string }
 
-            req.user = { userId: decoded.userId, role: decoded.role, organisationId: decoded.organisationId }; ``
+
+            req.user = {
+                userId: decoded.userId,
+                role: decoded.role,
+                organisationId: decoded.organisationId,
+            };
             return next();
 
         } catch (err) {
@@ -192,36 +209,23 @@ const verification = async (req: Request, res: Response, next: NextFunction) => 
                 return res.status(401).json({ error: "Invalid access token" });
             }
 
-            const incomingRefreshToken = req.cookies?.refreshToken;
-            if (!incomingRefreshToken) {
-                return res.status(401).json({ error: "Access token expired, please log in again" });
-            }
-
-            let decodedRefresh: { userId: string };
             try {
-                decodedRefresh = jwt.verify(
-                    incomingRefreshToken,
-                    process.env.REFRESH_TOKEN_VALUE as string
-                ) as { userId: string };
-            } catch {
+                const { accessToken, user } = await getNewAccessTokenFromRefreshCookie(
+                    req.cookies?.refreshToken
+                );
+
+                // hand the new token back so the frontend can update what it stores,
+                // without needing a separate manual refresh call
+                res.setHeader("x-access-token", accessToken);
+
+                req.user = { userId: user.id, role: user.role, organisationId: user.organisationId };
+                return next(); // ✅ the ORIGINAL protected route still runs
+            } catch (refreshError) {
+                if (refreshError instanceof ApiError) {
+                    return res.status(400).json({ error: refreshError.message });
+                }
                 return res.status(401).json({ error: "Session expired, please log in again" });
             }
-
-            const user = await prisma.user.findUnique({ where: { id: decodedRefresh.userId } });
-
-            if (!user || user.refreshToken !== incomingRefreshToken) {
-                return res.status(401).json({ error: "Session expired, please log in again" });
-            }
-
-            // refresh token still valid → silently mint a new access token
-            const newToken = await newAccessToken(user.id);
-
-            // hand the new token back to the frontend so it can update what it stores,
-            // without forcing a manual /refresh-token call + retry
-            res.setHeader("x-access-token", newToken);
-
-            req.user = { userId: user.id, role: user.role, organisationId: user.organisationId };
-            return next();
         }
 
     } catch (error) {
@@ -229,5 +233,4 @@ const verification = async (req: Request, res: Response, next: NextFunction) => 
     }
 };
 
-
-export { loginUser, logoutUser, refreshAccessToken, verification, };
+export { loginUser, logoutUser, verification };

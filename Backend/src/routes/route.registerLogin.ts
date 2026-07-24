@@ -7,4 +7,3 @@ registerLoginRouter.route('/registerWithNewOrganisation').post(registerWithNewOr
 registerLoginRouter.route('/newUserRegistration').post(newUserRegistration)
 registerLoginRouter.route('/userOwnnerWithoutOrg').post(userOwnerWithoutOrg)
 registerLoginRouter.route('/joinOrganisation').post(joinOrganisation)
- 
