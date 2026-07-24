@@ -9,11 +9,6 @@ const createDeal = async (req: Request, res: Response) => {
         const { clientMail, amount, estimatedCost, stateOfDeal, currency, scheduled } = req.body;
         const authorId = req.user?.userId;
         const organisationId = req.user?.organisationId;
-        const clientId = await prisma.client.findFirst({where:{email:clientMail},select:{id:true}})
-
-        if(clientId){
-            throw new ApiError(400,"Client Doesnt Exist on this maill")
-        }
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation to create deals");
@@ -23,9 +18,18 @@ const createDeal = async (req: Request, res: Response) => {
             throw new ApiError(400, "Amount and State of deal are required");
         }
 
+        const client = await prisma.client.findFirst({
+            where: { email: clientMail },
+            select: { id: true },
+        });
+
+        if (!client) {
+            throw new ApiError(400, "Client does not exist with this email");
+        }
+
         const deal = await prisma.deal.create({
             data: {
-                clientId: clientId || null,
+                clientId: client.id,
                 authorId: authorId || null,
                 dealOrganisation: organisationId,
                 amount,
@@ -44,7 +48,7 @@ const createDeal = async (req: Request, res: Response) => {
 
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(error.statusCode).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to create deal" });
     }
@@ -52,6 +56,8 @@ const createDeal = async (req: Request, res: Response) => {
 
 const getDeals = async (req: Request, res: Response) => {
     try {
+        const role = req.user?.role;
+        const userId = req.user?.userId;
         const organisationId = req.user?.organisationId;
         const { state } = req.query;
 
@@ -59,9 +65,12 @@ const getDeals = async (req: Request, res: Response) => {
             throw new ApiError(403, "User must belong to an organisation to view deals");
         }
 
+        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
+
         const deals = await prisma.deal.findMany({
             where: {
                 dealOrganisation: organisationId,
+                ...(isOwnerOrAdmin ? {} : { authorId: userId }), // employees only see their own deals
                 ...(state ? { stateOfDeal: state as State } : {}),
             },
             include: {
@@ -73,10 +82,10 @@ const getDeals = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json(new ApiResponse(200, { deals }, "Deals fetched successfully"));
-        
+
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(error.statusCode).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to fetch deals" });
     }
@@ -86,13 +95,21 @@ const getDealById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const organisationId = req.user?.organisationId;
+        const userId = req.user?.userId;
+        const role = req.user?.role;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
+
         const deal = await prisma.deal.findFirst({
-            where: { id, dealOrganisation: organisationId },
+            where: {
+                id,
+                dealOrganisation: organisationId,
+                ...(isOwnerOrAdmin ? {} : { authorId: userId }), // employees can only fetch their own deal
+            },
             include: {
                 client: true,
                 author: { select: { id: true, name: true, email: true } },
@@ -109,7 +126,7 @@ const getDealById = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, { deal }, "Deal details fetched successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(error.statusCode).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to fetch deal details" });
     }
@@ -118,8 +135,10 @@ const getDealById = async (req: Request, res: Response) => {
 const updateDeal = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { amount, estimatedCost, stateOfDeal, currency, scheduled, clientId } = req.body;
+        const { amount, estimatedCost, stateOfDeal, currency, scheduled, clientId, authorId } = req.body;
         const organisationId = req.user?.organisationId;
+        const role = req.user?.role;
+        const userId = req.user?.userId;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
@@ -131,6 +150,13 @@ const updateDeal = async (req: Request, res: Response) => {
 
         if (!existingDeal) {
             throw new ApiError(404, "Deal not found or unauthorized");
+        }
+
+        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
+
+        // Employees may only update deals they authored
+        if (!isOwnerOrAdmin && existingDeal.authorId !== userId) {
+            throw new ApiError(403, "You can only update deals you authored");
         }
 
         const updatedDeal = await prisma.deal.update({
@@ -142,14 +168,18 @@ const updateDeal = async (req: Request, res: Response) => {
                 ...(currency && { currency }),
                 ...(scheduled !== undefined && { scheduled: scheduled ? new Date(scheduled) : null }),
                 ...(clientId !== undefined && { clientId }),
+                // reassigning the deal's author is Owner/Admin-only — silently
+                // ignored (not applied) if an Employee sends it
+                ...(isOwnerOrAdmin && authorId !== undefined && { authorId }),
             },
             include: { client: true, author: { select: { id: true, name: true } } },
         });
 
         return res.status(200).json(new ApiResponse(200, { deal: updatedDeal }, "Deal updated successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(error.statusCode).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to update deal" });
     }
@@ -159,6 +189,8 @@ const deleteDeal = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const organisationId = req.user?.organisationId;
+        const role = req.user?.role;
+        const userId = req.user?.userId;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
@@ -172,12 +204,19 @@ const deleteDeal = async (req: Request, res: Response) => {
             throw new ApiError(404, "Deal not found or unauthorized");
         }
 
+        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
+
+        // Owner/Admin can delete any deal in the org; Employees only their own
+        if (!isOwnerOrAdmin && existingDeal.authorId !== userId) {
+            throw new ApiError(403, "You can only delete deals you authored");
+        }
+
         await prisma.deal.delete({ where: { id } });
 
         return res.status(200).json(new ApiResponse(200, {}, "Deal deleted successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(error.statusCode).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to delete deal" });
     }
