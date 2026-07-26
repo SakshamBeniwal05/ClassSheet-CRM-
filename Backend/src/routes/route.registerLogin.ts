@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { joinOrganisation, newUserRegistration, registerWithNewOrganisation, userOwnerWithoutOrg } from "../controller/login and register/controller.registration.js";
+import { joinOrganisation, newUserRegistration, registerWithNewOrganisation, userOwnerWithoutOrg } from "../controller/auth/controller.registration.js";
 
 export const registerLoginRouter = Router()
 

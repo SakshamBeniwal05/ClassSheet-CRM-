@@ -5,7 +5,7 @@ import {
     updateNote,
     deleteNote,
 } from "../../controller/notes/controller.notes.js";
-import { verification } from "../../controller/login and register/controller.active.js";
+import { verification } from "../../controller/auth/controller.active.js";
 
 export const notesRouter = Router();
 

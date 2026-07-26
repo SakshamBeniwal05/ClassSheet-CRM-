@@ -3,6 +3,7 @@ import { prisma } from "../../main.js";
 import crypto from "crypto";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
+import type { Role } from "../../generated/prisma/enums.js";
 
 const getOrganisationDetails = async (req: Request, res: Response) => {
     try {
@@ -27,6 +28,7 @@ const getOrganisationDetails = async (req: Request, res: Response) => {
         }
 
         return res.status(200).json(new ApiResponse(200, { organisation }, "Organisation details fetched successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(error.statuscode).json({ error: error.message });
@@ -60,6 +62,7 @@ const generateInviteToken = async (req: Request, res: Response) => {
         return res.status(200).json(
             new ApiResponse(200, { invite: updatedOrg }, "Invite token generated successfully")
         );
+
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(error.statuscode).json({ error: error.message });
@@ -89,6 +92,7 @@ const getOrganisationMembers = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json(new ApiResponse(200, { members }, "Members fetched successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(error.statuscode).json({ error: error.message });
@@ -96,7 +100,6 @@ const getOrganisationMembers = async (req: Request, res: Response) => {
         return res.status(500).json({ error: "Failed to fetch members" });
     }
 };
-
 const removeMember = async (req: Request, res: Response) => {
     try {
         const { memberId } = req.params;
@@ -124,8 +127,14 @@ const removeMember = async (req: Request, res: Response) => {
             throw new ApiError(400, "You cannot remove yourself");
         }
 
+        // Nobody can remove the Owner — regardless of who's asking
         if (member.role === "Owner") {
             throw new ApiError(403, "Cannot remove the Owner of the organisation");
+        }
+
+        // Admins can only remove Employees — not other Admins
+        if (userRole === "Admin" && member.role === "Admin") {
+            throw new ApiError(403, "Admins cannot remove other Admins");
         }
 
         const updatedUser = await prisma.user.update({
@@ -137,10 +146,59 @@ const removeMember = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, { member: updatedUser }, "Member removed from organisation"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to remove member" });
     }
 };
 
-export { getOrganisationDetails, generateInviteToken, getOrganisationMembers, removeMember };
+const changeMemberRole = async (req: Request, res: Response) => {
+    try {
+        const { memberId, updatedRole } = req.params;
+        const organisationId = req.user?.organisationId;
+        const role = req.user.role
+        const currentUserId = req.user?.userId;
+
+        if (!organisationId) {
+            throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (updatedRole !== "Admin" && updatedRole !== "Employee") {
+            throw new ApiError(400, "Role must be either Admin or Employee");
+        }
+
+        if (!(role === "Owner")) {
+            throw new ApiError(400, "nly the Owner can update member roles");
+        }
+
+        const member = await prisma.user.findFirst({
+            where: { id: memberId, organisationId },
+        });
+
+        if (!member) {
+            throw new ApiError(404, "Member not found in your organisation");
+        }
+        if (memberId === currentUserId) {
+            throw new ApiError(400, "You cannot change your own role");
+        }
+
+        if (member.role === "Owner") {
+            throw new ApiError(403, "Cannot change the Owner's role");
+        }
+
+
+        const updatedUserRole = await prisma.user.update({ where: { id: memberId }, data: { role: updatedRole as Role }, select: { id: true, name: true, email: true, role: true } })
+
+        return res.status(200).json(new ApiResponse(200, { member: updatedUserRole }, "Member removed from organisation"));
+
+
+    } catch (error) {
+        if (error instanceof ApiError) {
+            return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Failed to remove member" });
+    }
+
+}
+
+export { getOrganisationDetails, generateInviteToken, getOrganisationMembers, removeMember,changeMemberRole };

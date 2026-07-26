@@ -4,12 +4,12 @@ import {
     newUserRegistration,
     joinOrganisation,
     userOwnerWithoutOrg,
-} from "../../controller/login and register/controller.registration.js";
+} from "../../controller/auth/controller.registration.js";
 import {
     loginUser,
     logoutUser,
     verification,
-} from "../../controller/login and register/controller.active.js";
+} from "../../controller/auth/controller.active.js";
 
 export const registerLoginRouter = Router();
 

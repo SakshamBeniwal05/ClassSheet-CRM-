@@ -6,7 +6,7 @@ import { prisma } from "../../main.js";
 
 const createDeal = async (req: Request, res: Response) => {
     try {
-        const { clientMail, amount, estimatedCost, stateOfDeal, currency, scheduled } = req.body;
+        const { clientId, amount, estimatedCost, stateOfDeal, currency, scheduled } = req.body;
         const authorId = req.user?.userId;
         const organisationId = req.user?.organisationId;
 
@@ -19,7 +19,7 @@ const createDeal = async (req: Request, res: Response) => {
         }
 
         const client = await prisma.client.findFirst({
-            where: { email: clientMail },
+            where: { id: clientId },
             select: { id: true },
         });
 
@@ -91,22 +91,26 @@ const getDeals = async (req: Request, res: Response) => {
     }
 };
 
-const getDealById = async (req: Request, res: Response) => {
+const getParticularDeal = async (req: Request, res: Response) => {
     try {
-        const { id } = req.params;
+        const { criteria, value } = req.params;
         const organisationId = req.user?.organisationId;
         const userId = req.user?.userId;
         const role = req.user?.role;
+        const ALLOWED_CLIENT_SEARCH_FIELDS = ["id", "email"] as const;
+        type ClientSearchField = typeof ALLOWED_CLIENT_SEARCH_FIELDS[number];
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
         const isOwnerOrAdmin = role === "Owner" || role === "Admin";
-
+        if (!ALLOWED_CLIENT_SEARCH_FIELDS.includes(criteria as ClientSearchField)) {
+            throw new ApiError(400, "Invalid search criteria");
+        }
         const deal = await prisma.deal.findFirst({
             where: {
-                id,
+                [criteria]: value,
                 dealOrganisation: organisationId,
                 ...(isOwnerOrAdmin ? {} : { authorId: userId }), // employees can only fetch their own deal
             },
@@ -126,7 +130,7 @@ const getDealById = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, { deal }, "Deal details fetched successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statusCode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to fetch deal details" });
     }
@@ -152,7 +156,7 @@ const updateDeal = async (req: Request, res: Response) => {
             throw new ApiError(404, "Deal not found or unauthorized");
         }
 
-        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
+        const isOwnerOrAdmin = (role === "Owner" || role === "Admin");
 
         // Employees may only update deals they authored
         if (!isOwnerOrAdmin && existingDeal.authorId !== userId) {
@@ -179,7 +183,7 @@ const updateDeal = async (req: Request, res: Response) => {
 
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statusCode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to update deal" });
     }
@@ -191,20 +195,19 @@ const deleteDeal = async (req: Request, res: Response) => {
         const organisationId = req.user?.organisationId;
         const role = req.user?.role;
         const userId = req.user?.userId;
+        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
         const existingDeal = await prisma.deal.findFirst({
-            where: { id, dealOrganisation: organisationId },
+            where: { id, dealOrganisation: organisationId, ...(isOwnerOrAdmin ? {} : { authorId: userId }) },
         });
 
         if (!existingDeal) {
             throw new ApiError(404, "Deal not found or unauthorized");
         }
-
-        const isOwnerOrAdmin = role === "Owner" || role === "Admin";
 
         // Owner/Admin can delete any deal in the org; Employees only their own
         if (!isOwnerOrAdmin && existingDeal.authorId !== userId) {
@@ -216,10 +219,10 @@ const deleteDeal = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, {}, "Deal deleted successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statusCode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to delete deal" });
     }
 };
 
-export { createDeal, getDeals, getDealById, updateDeal, deleteDeal };
+export { createDeal, getDeals, getParticularDeal, updateDeal, deleteDeal };

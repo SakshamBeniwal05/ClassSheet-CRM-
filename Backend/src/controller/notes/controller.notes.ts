@@ -39,25 +39,30 @@ const createNote = async (req: Request, res: Response) => {
         });
 
         return res.status(201).json(new ApiResponse(201, { note }, "Note created successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to create note" });
     }
+
 };
 
 const getNotesByDeal = async (req: Request, res: Response) => {
     try {
         const { dealId } = req.params;
+        const { role } = req.user?.role;
         const organisationId = req.user?.organisationId;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        const isAdminorOwner = role === "Admin" || role === "Owner"
+
         const deal = await prisma.deal.findFirst({
-            where: { id: dealId, dealOrganisation: organisationId },
+            where: { id: dealId, ...(isAdminorOwner ? {} : { authorId: deal?.authorId }), dealOrganisation: organisationId },
         });
 
         if (!deal) {
@@ -76,7 +81,7 @@ const getNotesByDeal = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, { notes }, "Notes fetched successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to fetch notes" });
     }
@@ -87,13 +92,17 @@ const updateNote = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { title, body, status } = req.body;
         const organisationId = req.user?.organisationId;
+        const role = req.user.role
+        const userId = req.user.id
 
+        const isAdminorOwner = role === "Admin" || role === "Owner"
+        
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
         const existingNote = await prisma.note.findFirst({
-            where: { id, deal: { dealOrganisation: organisationId } },
+            where: { id, ...(isAdminorOwner ? {} : {authorId:userId}) ,deal: { dealOrganisation: organisationId } },
         });
 
         if (!existingNote) {
@@ -110,9 +119,10 @@ const updateNote = async (req: Request, res: Response) => {
         });
 
         return res.status(200).json(new ApiResponse(200, { note: updatedNote }, "Note updated successfully"));
+
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to update note" });
     }
@@ -122,13 +132,17 @@ const deleteNote = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const organisationId = req.user?.organisationId;
+        const role = req.user.role
+        const userId = req.user.id
+
+        const isAdminorOwner = role === "Admin" || role === "Owner"
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
         const existingNote = await prisma.note.findFirst({
-            where: { id, deal: { dealOrganisation: organisationId } },
+            where: { id, ...(isAdminorOwner? {} : {authorId:userId}) ,deal: { dealOrganisation: organisationId } },
         });
 
         if (!existingNote) {
@@ -140,7 +154,7 @@ const deleteNote = async (req: Request, res: Response) => {
         return res.status(200).json(new ApiResponse(200, {}, "Note deleted successfully"));
     } catch (error) {
         if (error instanceof ApiError) {
-            return res.status(error.statuscode).json({ error: error.message });
+            return res.status(400).json({ error: error.message });
         }
         return res.status(500).json({ error: "Failed to delete note" });
     }

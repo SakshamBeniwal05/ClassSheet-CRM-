@@ -4,7 +4,7 @@ import {
     getMediaByDeal,
     deleteMedia,
 } from "../../controller/media/controller.media.js";
-import { verification } from "../../controller/login and register/controller.active.js";
+import { verification } from "../../controller/auth/controller.active.js";
 
 export const mediaRouter = Router();
 

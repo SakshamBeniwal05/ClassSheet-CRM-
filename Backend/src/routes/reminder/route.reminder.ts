@@ -5,7 +5,7 @@ import {
     updateReminderStatus,
     deleteReminder,
 } from "../../controller/reminder/controller.reminder.js";
-import { verification } from "../../controller/login and register/controller.active.js";
+import { verification } from "../../controller/auth/controller.active.js";
 
 export const reminderRouter = Router();
 
