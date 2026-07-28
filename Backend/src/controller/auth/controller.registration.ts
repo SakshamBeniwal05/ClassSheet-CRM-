@@ -185,6 +185,7 @@ const joinOrganisation = async (req: Request, res: Response) => {
 
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
+        
         if (user?.organisationId) {
             throw new ApiError(400, "You already belong to an organisation");
         }

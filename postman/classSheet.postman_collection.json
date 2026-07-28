@@ -416,6 +416,27 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Change Member Role",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PATCH",
+						"url": {
+							"raw": "{{baseUrl}}/api/organisation/members/:memberId/:updatedRole",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "organisation", "members", ":memberId", ":updatedRole"],
+							"variable": [
+								{ "key": "memberId", "value": "user-uuid" },
+								{ "key": "updatedRole", "value": "Admin" }
+							]
+						},
+						"description": "Change the role of an organisation member (e.g. Owner, Admin, Employee)."
+					},
+					"response": []
 				}
 			]
 		},
@@ -507,7 +528,24 @@
 			"description": "Media attachments endpoints",
 			"item": [
 				{
-					"name": "Upload Media Record",
+					"name": "Get ImageKit Upload Auth Params",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "GET",
+						"url": {
+							"raw": "{{baseUrl}}/api/media/auth",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", "auth"]
+						},
+						"description": "Fetch secure signature and token parameters from the backend to perform direct file uploads to ImageKit from the frontend client."
+					},
+					"response": []
+				},
+				{
+					"name": "Save Media Record",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -517,13 +555,37 @@
 						"header": [{ "key": "Content-Type", "value": "application/json" }],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"mediaUrl\": \"https://storage.example.com/contracts/contract_101.pdf\",\n  \"dealId\": \"deal-uuid\",\n  \"fileName\": \"contract_101.pdf\"\n}"
+							"raw": "{\n  \"mediaUrl\": \"https://ik.imagekit.io/sakshambeniwal/contract_101.pdf\",\n  \"dealId\": \"deal-uuid\",\n  \"fileName\": \"651f84b6f10c3d9a10a3bc7d\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/media",
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "media"]
-						}
+						},
+						"description": "Save media metadata in the database. The 'fileName' field must store the ImageKit fileId for future updates/deletions."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Media Record",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "PUT",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mediaUrl\": \"https://ik.imagekit.io/sakshambeniwal/contract_101_updated.pdf\",\n  \"fileName\": \"651f84b6f10c3d9a10a3bc7e\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/media/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "media", ":id"],
+							"variable": [{ "key": "id", "value": "media-uuid" }]
+						},
+						"description": "Update media details. If a new fileId (fileName) is uploaded, the backend deletes the old file from ImageKit first."
 					},
 					"response": []
 				},
@@ -557,7 +619,8 @@
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "media", ":id"],
 							"variable": [{ "key": "id", "value": "media-uuid" }]
-						}
+						},
+						"description": "Delete a media record. The backend automatically deletes the matching file from ImageKit before cleaning up the database record."
 					},
 					"response": []
 				}
