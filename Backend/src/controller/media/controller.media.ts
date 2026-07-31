@@ -30,9 +30,7 @@ const uploadMedia = async (req: Request, res: Response) => {
         }
 
         const deal = await prisma.deal.findFirst({
-            where: { id: dealId, dealOrganisation: organisationId },
-        });
-
+            where: { id: dealId, dealOrganisation: organisationId }})
         if (!deal) {
             throw new ApiError(404, "Deal not found or unauthorized");
         }
