@@ -1,6 +1,6 @@
 import axios from "axios";
 
 export const apiCaller = axios.create({
-    baseURL: import.meta.env.BACKEND_URL || "http://localhost:8000/api",
+    baseURL:import.meta.env.BACKEND_URLBACKEND_URL,
     withCredentials: true
 })
