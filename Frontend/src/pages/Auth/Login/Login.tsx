@@ -1,5 +1,6 @@
 import { useForm } from "react-hook-form"
 import { userStore } from "../../../store/userStore"
+import SubSelectToggleDemo from "../../../components/ui/sub-select-toggle/demo"
 
 type LoginForm = {
     email: string
@@ -11,11 +12,12 @@ const Login = () => {
     const { isLoggingIn, login } = userStore()
 
     return (
-        <div className="bg-colorPrimary">
-            <div>
+        <div>
+            <div >
                 <div></div>
                 {/* login form */}
                 <div>
+                    <SubSelectToggleDemo />
                     <form onSubmit={handleSubmit(login)}>
                         <div>
                             <label htmlFor="email-input">
@@ -44,7 +46,7 @@ const Login = () => {
         </div>
     )
 }
-        
+
 
 
 export default Login

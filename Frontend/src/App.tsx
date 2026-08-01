@@ -4,10 +4,10 @@ import { Toaster } from "react-hot-toast"
 function App() {
 
   return (
-    <>
+    <div className="bg-colorSecondary h-screen text-colorNeutral">
       <Login />
       <Toaster position="top-right" />
-    </>
+    </div>
   )
 }
 
