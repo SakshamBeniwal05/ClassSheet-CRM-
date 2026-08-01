@@ -1,6 +1,6 @@
 import axios from "axios";
 
 export const apiCaller = axios.create({
-    baseURL:import.meta.env.BACKEND_URLBACKEND_URL,
+    baseURL:import.meta.env.VITE_BACKEND_URL,
     withCredentials: true
 })

@@ -1,10 +1,12 @@
-import LandingPage from "./pages/LandingPage/LandingPage"
+import Login from "./pages/Auth/Login/Login"
+import { Toaster } from "react-hot-toast"
 
 function App() {
 
   return (
     <>
-      <LandingPage />
+      <Login />
+      <Toaster position="top-right" />
     </>
   )
 }

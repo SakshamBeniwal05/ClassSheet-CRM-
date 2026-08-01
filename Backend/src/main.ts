@@ -1,6 +1,7 @@
 import e, { type Application, type Request, type Response } from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
+import cors from "cors"
 
 dotenv.config();
 
@@ -11,6 +12,10 @@ app.use(e.json({ limit: "16kb" }));
 app.use(e.urlencoded({ extended: true, limit: "16kb" }));
 app.use(e.static("public"));
 app.use(cookieParser());
+app.use(cors({
+    origin: process.env.CORS_ENV,
+    credentials: true
+}))
 
 
 // Pass the adapter instance to PrismaClient
