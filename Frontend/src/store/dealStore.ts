@@ -19,7 +19,7 @@ export const useDealStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.post('/deals', data)
-            set({ deals: [...get().deals, res.data.data.deal || res.data.data] })
+            set({ deals: [...get().deals, res.data.data.deal] })
             toast.success(res.data.message || "Deal created successfully");
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create deal";
@@ -59,7 +59,7 @@ export const useDealStore = create((set, get: any) => ({
         set({ isUpdatingDeal: true })
         try {
             const res = await apiCaller.put(`/deals/${id}`, data)
-            const updatedDeal = res.data.data
+            const updatedDeal = res.data.data.deal
             set({
                 deals: get().deals.map((d: any) => d.id === id ? { ...d, ...updatedDeal } : d),
                 particularDeal: get().particularDeal?.id === id ? { ...get().particularDeal, ...updatedDeal } : get().particularDeal

@@ -18,7 +18,7 @@ export const useReminderStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.post('/reminders', data)
-            set({ reminders: [...get().reminders, res.data.data.reminder || res.data.data] })
+            set({ reminders: [...get().reminders, res.data.data.reminder] })
             toast.success(res.data.message || "Reminder created successfully");
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create reminder";
@@ -49,7 +49,7 @@ export const useReminderStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.put(`/reminders/${id}/status`, { status })
-            const updatedReminder = res.data.data
+            const updatedReminder = res.data.data.reminder
             set({
                 reminders: get().reminders.map((r: any) => r.id === id ? { ...r, ...updatedReminder } : r)
             })

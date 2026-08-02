@@ -233,4 +233,57 @@ const verification = async (req: Request, res: Response, next: NextFunction) => 
     }
 };
 
-export { loginUser, logoutUser, verification };
+const verifySession = async (req: Request, res: Response) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                organisationId: true
+            }
+        });
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+        return res.status(200).json(new ApiResponse(200, { user }, "Session verified successfully"));
+    } catch (error) {
+        if (error instanceof ApiError) {
+            return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+const refreshSession = async (req: Request, res: Response) => {
+    try {
+        const { accessToken, user } = await getNewAccessTokenFromRefreshCookie(
+            req.cookies?.refreshToken
+        );
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                {
+                    accessToken,
+                    user: {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                        organisationId: user.organisationId
+                    }
+                },
+                "Session refreshed successfully"
+            )
+        );
+    } catch (error) {
+        if (error instanceof ApiError) {
+            return res.status(401).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Something went wrong" });
+    }
+};
+
+export { loginUser, logoutUser, verification, verifySession, refreshSession };

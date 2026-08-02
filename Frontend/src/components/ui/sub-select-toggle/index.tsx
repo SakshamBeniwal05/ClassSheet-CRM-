@@ -41,7 +41,7 @@ const SubSelectToggle = ({
             y: second ? -10 : 0,
           }}
         >
-          <div>Premium</div>
+          <div>Registeration</div>
           <motion.div className="mt-0.5 text-xs font-semibold opacity-60">
             {subTabs[0].label} • {subTabs[1].label}
           </motion.div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import SubSelectToggle from ".";
 import type { MenuItem } from "."
 
@@ -14,9 +13,15 @@ const SUB_TABS: [MenuItem, MenuItem] = [
   { label: "Existing Org", value: "existingOrg" },
 ];
 
-const SubSelectToggleDemo = () => {
-  const [tab, setTab] = useState(TABS[0]);
-  const [subTab, setSubTab] = useState(SUB_TABS[0]);
+
+interface SubSelectToggleDemoProps {
+  tab: MenuItem
+  setTab: (tab: MenuItem) => void
+  subTab: MenuItem
+  setSubTab: (tab: MenuItem) => void
+}
+
+const SubSelectToggleDemo = ({ tab, setTab, subTab, setSubTab }: SubSelectToggleDemoProps) => {
 
   return (
     <div className="flex justify-center py-8">

@@ -29,7 +29,7 @@ export const useMemberStore = create((set, get: any) => ({
         set({ isGeneratingToken: true })
         try {
             const res = await apiCaller.post('/organisation/invite-token')
-            set({ inviteToken: res.data.data.inviteToken || res.data.data })
+            set({ inviteToken: res.data.data.invite?.inviteToken || res.data.data.inviteToken || res.data.data })
             toast.success("Invite token generated successfully");
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to generate invite token";
@@ -70,7 +70,6 @@ export const useMemberStore = create((set, get: any) => ({
         set({ isChangingRole: true })
         try {
             const res = await apiCaller.patch(`/organisation/members/${memberId}/${updatedRole}`)
-            const updatedUser = res.data.data
             set({
                 members: get().members.map((m: any) => m.id === memberId ? { ...m, role: updatedRole } : m)
             })

@@ -20,7 +20,7 @@ export const useClientStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.post('/clients', data)
-            set({ clients: [...get().clients, res.data.data] })
+            set({ clients: [...get().clients, res.data.data.client] })
             toast.success(res.data.message || "Client created successfully");
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create client";
@@ -60,7 +60,7 @@ export const useClientStore = create((set, get: any) => ({
         set({ isUpdatingClient: true })
         try {
             const res = await apiCaller.put(`/clients/${id}`, data)
-            const updatedClient = res.data.data
+            const updatedClient = res.data.data.client
             set({
                 clients: get().clients.map((c: any) => c.id === id ? { ...c, ...updatedClient } : c),
                 particularClient: get().particularClient?.id === id ? { ...get().particularClient, ...updatedClient } : get().particularClient

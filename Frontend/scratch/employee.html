@@ -1,0 +1,497 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Employees Management | Core CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #191302;
+            color: #f1e1bf;
+            margin: 0;
+        }
+        /* Custom scrollbar for data-heavy views */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #191302;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3d341c;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #aa8983;
+        }
+        .glass-panel {
+            background: rgba(36, 36, 36, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(219, 204, 171, 0.1);
+        }
+        .status-pill-active {
+            background: rgba(255, 180, 166, 0.1);
+            color: #ffb4a6;
+            border: 1px solid rgba(255, 180, 166, 0.2);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface": "#f1e1bf",
+                      "outline-variant": "#5a403c",
+                      "error-container": "#93000a",
+                      "inverse-surface": "#f1e1bf",
+                      "on-tertiary-fixed": "#2e1500",
+                      "on-tertiary-fixed-variant": "#6d3a00",
+                      "tertiary-fixed": "#ffdcc2",
+                      "surface-dim": "#191302",
+                      "on-tertiary-container": "#432100",
+                      "on-secondary": "#303030",
+                      "surface-tint": "#ffb4a6",
+                      "primary-fixed": "#ffdad4",
+                      "on-primary-fixed": "#3f0300",
+                      "inverse-on-surface": "#383018",
+                      "on-error-container": "#ffdad6",
+                      "secondary-fixed-dim": "#c8c6c5",
+                      "tertiary": "#ffb77a",
+                      "surface-bright": "#413820",
+                      "secondary-fixed": "#e4e2e1",
+                      "secondary": "#c8c6c5",
+                      "primary-fixed-dim": "#ffb4a6",
+                      "surface-variant": "#3d341c",
+                      "primary-container": "#fc593e",
+                      "on-primary": "#660700",
+                      "surface-container-low": "#221b06",
+                      "on-secondary-fixed-variant": "#474746",
+                      "on-tertiary": "#4c2700",
+                      "surface-container-lowest": "#140d00",
+                      "surface-container-high": "#312913",
+                      "primary": "#ffb4a6",
+                      "on-primary-container": "#5a0600",
+                      "on-background": "#f1e1bf",
+                      "on-surface-variant": "#e3beb7",
+                      "on-primary-fixed-variant": "#900f00",
+                      "background": "#191302",
+                      "outline": "#aa8983",
+                      "surface-container": "#261f09",
+                      "on-secondary-container": "#b7b5b4",
+                      "error": "#ffb4ab",
+                      "tertiary-container": "#d67a12",
+                      "tertiary-fixed-dim": "#ffb77a",
+                      "surface": "#191302",
+                      "on-secondary-fixed": "#1b1c1c",
+                      "surface-container-highest": "#3d341c",
+                      "on-error": "#690005",
+                      "secondary-container": "#474746",
+                      "inverse-primary": "#b52612"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "16px",
+                      "base": "4px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "margin-mobile": "16px",
+                      "md": "16px",
+                      "margin-desktop": "32px"
+              },
+              "fontFamily": {
+                      "label-md": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-xl": ["Inter"],
+                      "label-sm": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                      "headline-xl": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface border-r border-outline-variant flex flex-col h-full py-lg z-50">
+<div class="px-lg mb-xl">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">CRM Admin</h1>
+<p class="font-label-md text-label-md text-on-surface-variant opacity-70">Managing Director</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-md text-label-md">Clients</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="handshake">handshake</span>
+<span class="font-label-md text-label-md">Deals</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
+<span class="font-label-md text-label-md">Reminders</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-md px-md py-sm bg-secondary-container text-on-secondary-container border-l-4 border-primary" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+<span class="font-label-md text-label-md">Employees</span>
+</a>
+</nav>
+<div class="px-md mb-lg">
+<button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md py-md rounded-lg flex items-center justify-center gap-sm hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+                New Deal
+            </button>
+</div>
+<div class="mt-auto border-t border-outline-variant pt-md">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 left-[280px] h-16 bg-surface-container border-b border-outline-variant flex justify-between items-center px-lg z-40">
+<div class="flex items-center gap-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="bg-background border border-outline-variant rounded-full py-1.5 pl-10 pr-4 text-body-md text-on-surface focus:outline-none focus:border-primary w-64 transition-all" placeholder="Search employees..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex gap-md">
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+</div>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="A professional headshot of a corporate managing director with sharp business attire. The lighting is dramatic and moody with warm amber undertones, fitting a high-end charcoal and sand-themed CRM interface. The background is a blurred high-rise office at dusk." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAerrDOBuxPlPAxyW1qEQJI1DStZs00gWFB3rKECSSHo1xzVheErjLfBY7ESvR8v6U5RoaLw6qrGAZzQAy_Q0Mp7FjKXPyS7JEZRXnbgRoJU2u3UOS0YIMKlDjgxlRLIeap1kc38n3ITu-sS0hXDnJxh43h9u1CLWjSlQiysv6z7MD-d_qy-tOGEz9zaLfvaB6dsPc0TPWcdbRqE9M17cZYrtfoiUbbJyv7Is6uREI_4aOfBT3_V50St31h3TnROOe15ip5rS2-5i0">
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[280px] mt-16 p-lg h-[calc(100vh-64px)] overflow-y-auto">
+<!-- Dashboard Header -->
+<div class="mb-lg flex justify-between items-end">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-xs">Team Directory</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage your organization's members and their performance metrics.</p>
+</div>
+<div class="flex gap-md">
+<button class="flex items-center gap-sm px-md py-sm border border-outline-variant rounded-lg text-on-surface hover:bg-surface-container-high transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="filter_list">filter_list</span>
+<span class="font-label-md text-label-md">Filter</span>
+</button>
+<button class="flex items-center gap-sm px-md py-sm bg-primary text-on-primary font-bold rounded-lg hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-[20px]" data-icon="person_add">person_add</span>
+<span class="font-label-md text-label-md">Add Employee</span>
+</button>
+</div>
+</div>
+<!-- Table Container (Bento Style Card) -->
+<div class="glass-panel rounded-xl overflow-hidden shadow-2xl">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high border-b border-outline-variant">
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest">Name &amp; ID</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest">Email Address</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest">Role</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest text-center">Status</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest text-right">Deals</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest text-right">Meetings</th>
+<th class="px-md py-lg font-label-md text-label-md text-on-surface opacity-60 uppercase tracking-widest text-center">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/30">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-lg overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="Corporate portrait of a female sales executive with a confident expression. Cinematic warm lighting highlights her features against a dark, textured background. The image is sophisticated and professional, reflecting the charcoal and sand brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-nJE5W219VxMugTSPYiHAZA0IQMz9NmMi62C0EizVTV6C2JjtKci3WDrQ-__im26sjaIlkCvghGjhV7D2C5qKkG4wODqpoQ6YfjxsJw-IxVxkuXOnqiN8UnM8SL1W4LmurGhP5eLNQ-CQzwK0Ei2EfKTqMaSPtq4Ixf4dhgtdpa5BhaGCZ8Tatjlob5-8wOU9STcbi5nh-zMHdsfpwtUdlUbLhNx2JjoHOxOLcN34uqQdOzlYZV-Of1hzYjxa6fq63K0Rt0McLXs">
+</div>
+<div>
+<div class="font-label-md text-on-surface text-sm">Elena Rodriguez</div>
+<div class="font-label-sm text-on-surface-variant opacity-60">ID: EMP-8821</div>
+</div>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-on-surface-variant">elena.r@corecrm.io</td>
+<td class="px-md py-md">
+<span class="px-2 py-1 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">Senior Associate</span>
+</td>
+<td class="px-md py-md text-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full status-pill-active text-[11px] font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
+                                    Online
+                                </span>
+</td>
+<td class="px-md py-md font-headline-md text-primary text-right">24</td>
+<td class="px-md py-md font-headline-md text-tertiary text-right">142</td>
+<td class="px-md py-md text-center">
+<button class="px-4 py-1.5 border border-primary text-primary hover:bg-primary hover:text-on-primary transition-all rounded-lg text-[11px] font-bold uppercase tracking-tight">
+                                    Promote to Admin
+                                </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-lg overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="Portrait of a male account manager in a minimalist dark suit. High-contrast lighting with amber glows, conveying authority and focus. Professional photography style in a dark studio setting with subtle depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB-F-qojDggKqV-MXRFbkvwadDUGEk5ayElhEfjhpR6K3bqAiVoUddBMAJqo1VwGarf8joKqnHBlPIvIIWqobQV5Zr4FcXLFz0vAZ4gX2vQbSkZJChrPP7wmtzK8k6nK3PsbfLbQL2BrZf_AxE13Q6YMtxaaMqeiGhTAYlu31pus2heL0mk0jKAvKFb8mxzpr93Nu_iy50Q6IpJ_IgzCnakKR548eLgIYVQYbCMVTMZccdhsnUDuCEhdu7Oc2uuYwTle0u-0lOrEs">
+</div>
+<div>
+<div class="font-label-md text-on-surface text-sm">Marcus Chen</div>
+<div class="font-label-sm text-on-surface-variant opacity-60">ID: EMP-9044</div>
+</div>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-on-surface-variant">m.chen@corecrm.io</td>
+<td class="px-md py-md">
+<span class="px-2 py-1 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">Regional Manager</span>
+</td>
+<td class="px-md py-md text-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant text-[11px] font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-on-surface-variant opacity-40"></span>
+                                    Away
+                                </span>
+</td>
+<td class="px-md py-md font-headline-md text-primary text-right">18</td>
+<td class="px-md py-md font-headline-md text-tertiary text-right">98</td>
+<td class="px-md py-md text-center">
+<button class="px-4 py-1.5 border border-primary text-primary hover:bg-primary hover:text-on-primary transition-all rounded-lg text-[11px] font-bold uppercase tracking-tight">
+                                    Promote to Admin
+                                </button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-lg overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="A focused female software developer with glasses, captured in a modern tech office environment. Low-light aesthetics with subtle burnt red accents in the bokeh background. Highly detailed, high-fidelity corporate portrait." src="https://lh3.googleusercontent.com/aida-public/AB6AXuABMZ1K16cDsFvkI9yHse4dgF8NZi9Fku0le0NWm6jQ0zNh2986hBLh5C2vIoKPpa1N0S8XhFpQH0V1HFfrbbZTKesUfTlFFIbbsXsXms1rDZXC59KNxNurj5fB0MZNAbbydyZni9IkDtEW9yNAJNPs8qGTmrIPAHmcwg5Il-X3KcZ4F2Whv9Pp4wZI2MiVyT6ng_LbJPtii6CibifdFZ709t5EWycL6tD1Q7PUbfakcbbwfJH0qIufSjDEizlustFsK2VpQvnQYQU">
+</div>
+<div>
+<div class="font-label-md text-on-surface text-sm">Sarah Jenkins</div>
+<div class="font-label-sm text-on-surface-variant opacity-60">ID: EMP-1129</div>
+</div>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-on-surface-variant">s.jenkins@corecrm.io</td>
+<td class="px-md py-md">
+<span class="px-2 py-1 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">Developer</span>
+</td>
+<td class="px-md py-md text-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full status-pill-active text-[11px] font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
+                                    Online
+                                </span>
+</td>
+<td class="px-md py-md font-headline-md text-primary text-right">4</td>
+<td class="px-md py-md font-headline-md text-tertiary text-right">22</td>
+<td class="px-md py-md text-center">
+<button class="px-4 py-1.5 border border-primary text-primary hover:bg-primary hover:text-on-primary transition-all rounded-lg text-[11px] font-bold uppercase tracking-tight">
+                                    Promote to Admin
+                                </button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-lg overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="An older, distinguished male business consultant with a thoughtful expression. Warm studio lighting with charcoal tones. Professional and authoritative mood, emphasizing experience and reliability." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSE2_HPZ-OomFZccJaHbUr6CpjkZ0FvBDBln8VOvXoE5Xg8-T-ufd_oO71RxBgiF97dFAnfnLdfzJMsTRO9FYK-BubKBUO4qBsc1gRrlenAda9T5NpxEOaW98FlfPposQsqgSUu3_cMI3NyqfqmQYUDG75yokjLMOlNELWmu1ky1WEPYrzs3lk8rsXueD6UPLSBw2Di-xGEWwsaZJmr8CqJyBD_wk8OkPIWtSVqk8C2GMpCHO2pmb6MPC4us6Qd0Y_DyWVn5ldEOo">
+</div>
+<div>
+<div class="font-label-md text-on-surface text-sm">David Sterling</div>
+<div class="font-label-sm text-on-surface-variant opacity-60">ID: EMP-0042</div>
+</div>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-on-surface-variant">d.sterling@corecrm.io</td>
+<td class="px-md py-md">
+<span class="px-2 py-1 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">Admin</span>
+</td>
+<td class="px-md py-md text-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant text-[11px] font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-on-surface-variant opacity-20"></span>
+                                    Offline
+                                </span>
+</td>
+<td class="px-md py-md font-headline-md text-primary text-right">31</td>
+<td class="px-md py-md font-headline-md text-tertiary text-right">215</td>
+<td class="px-md py-md text-center">
+<div class="text-[10px] text-on-surface-variant italic">Already Admin</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-highest transition-colors group">
+<td class="px-md py-md">
+<div class="flex items-center gap-md">
+<div class="h-10 w-10 rounded-lg overflow-hidden border border-outline-variant">
+<img class="h-full w-full object-cover" data-alt="Portrait of a dynamic young male sales representative with an energetic smile. Shot in a bright, modern light-mode meeting space with soft shadows. The visual aesthetic is clean, professional, and sophisticated." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXAWrCy9fkdojXVpuUBUzy4M9mBwXLNKdw2S2T1pLFyt7pwImcODHTxOWHKF0MSEdaFjYcOpwY9_ctiNyC0ZaHTHaqrTB-nCOTLTqzflVfwcOQnO6V1mpsbkhFqIQSxbMZ9QgWcr8wPeMPdhZL7k-UcK2oqN6NxB2RG4NsuAkDaBRrx8eyPDbVRTKVXIqqVHwt8hOx8QE-CYmdiRgCOGponaFUf-u22pdnIbPGHkKoQ52S9rZIqoWfF5Lr53pxArfZA0USFByfFOM">
+</div>
+<div>
+<div class="font-label-md text-on-surface text-sm">James Wilson</div>
+<div class="font-label-sm text-on-surface-variant opacity-60">ID: EMP-7731</div>
+</div>
+</div>
+</td>
+<td class="px-md py-md font-body-md text-on-surface-variant">j.wilson@corecrm.io</td>
+<td class="px-md py-md">
+<span class="px-2 py-1 rounded bg-secondary-container text-on-secondary-container text-[10px] font-bold uppercase">Junior Analyst</span>
+</td>
+<td class="px-md py-md text-center">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full status-pill-active text-[11px] font-semibold">
+<span class="h-1.5 w-1.5 rounded-full bg-primary animate-pulse"></span>
+                                    Online
+                                </span>
+</td>
+<td class="px-md py-md font-headline-md text-primary text-right">12</td>
+<td class="px-md py-md font-headline-md text-tertiary text-right">45</td>
+<td class="px-md py-md text-center">
+<button class="px-4 py-1.5 border border-primary text-primary hover:bg-primary hover:text-on-primary transition-all rounded-lg text-[11px] font-bold uppercase tracking-tight">
+                                    Promote to Admin
+                                </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer/Pagination -->
+<div class="px-lg py-md bg-surface-container flex items-center justify-between border-t border-outline-variant">
+<span class="font-label-sm text-on-surface-variant">Showing 1-5 of 48 team members</span>
+<div class="flex gap-sm">
+<button class="h-8 w-8 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="h-8 px-3 flex items-center justify-center rounded bg-primary text-on-primary font-bold text-[12px]">1</button>
+<button class="h-8 px-3 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors text-[12px]">2</button>
+<button class="h-8 px-3 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors text-[12px]">3</button>
+<button class="h-8 w-8 flex items-center justify-center rounded border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Metric Overview Grid (Asymmetric Bento) -->
+<div class="mt-lg grid grid-cols-12 gap-lg">
+<div class="col-span-8 glass-panel rounded-xl p-lg">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-headline-md text-on-surface">Team Distribution</h3>
+<button class="text-primary font-label-md text-label-md hover:underline">View Analytics</button>
+</div>
+<div class="grid grid-cols-3 gap-lg h-40">
+<div class="bg-surface-container-high rounded-lg p-md flex flex-col justify-between border border-outline-variant/30">
+<span class="text-on-surface-variant font-label-sm uppercase">Active Now</span>
+<div class="text-headline-xl text-primary font-bold">32</div>
+<div class="text-[10px] text-primary/70">+12% vs last week</div>
+</div>
+<div class="bg-surface-container-high rounded-lg p-md flex flex-col justify-between border border-outline-variant/30">
+<span class="text-on-surface-variant font-label-sm uppercase">Avg Deals / Rep</span>
+<div class="text-headline-xl text-tertiary font-bold">14.2</div>
+<div class="text-[10px] text-tertiary/70">Target: 15.0</div>
+</div>
+<div class="bg-surface-container-high rounded-lg p-md flex flex-col justify-between border border-outline-variant/30">
+<span class="text-on-surface-variant font-label-sm uppercase">Meetings/Day</span>
+<div class="text-headline-xl text-on-surface font-bold">128</div>
+<div class="text-[10px] text-on-surface-variant opacity-60">Across all timezones</div>
+</div>
+</div>
+</div>
+<!-- Quick Actions Panel -->
+<div class="col-span-4 glass-panel rounded-xl p-lg border-l-4 border-primary">
+<h3 class="font-headline-md text-on-surface mb-md">Admin Controls</h3>
+<ul class="space-y-sm">
+<li>
+<button class="w-full flex items-center justify-between p-md bg-surface-container-high hover:bg-surface-container-highest rounded-lg border border-outline-variant/30 transition-all group">
+<span class="font-label-md text-on-surface">Audit Trail</span>
+<span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform" data-icon="history">history</span>
+</button>
+</li>
+<li>
+<button class="w-full flex items-center justify-between p-md bg-surface-container-high hover:bg-surface-container-highest rounded-lg border border-outline-variant/30 transition-all group">
+<span class="font-label-md text-on-surface">Access Policy</span>
+<span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform" data-icon="policy">policy</span>
+</button>
+</li>
+<li>
+<button class="w-full flex items-center justify-between p-md bg-surface-container-high hover:bg-surface-container-highest rounded-lg border border-outline-variant/30 transition-all group">
+<span class="font-label-md text-on-surface">Bulk Permissions</span>
+<span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform" data-icon="security">security</span>
+</button>
+</li>
+</ul>
+</div>
+</div>
+</main>
+<script>
+        // Simple micro-interaction for promotion buttons
+        document.querySelectorAll('button').forEach(button => {
+            if (button.innerText.includes('Promote to Admin')) {
+                button.addEventListener('click', function() {
+                    const originalText = this.innerText;
+                    this.innerHTML = '<span class="material-symbols-outlined animate-spin text-[16px]" data-icon="refresh">refresh</span>';
+                    this.disabled = true;
+                    
+                    setTimeout(() => {
+                        this.innerText = 'Promoted';
+                        this.classList.remove('border-primary', 'text-primary');
+                        this.classList.add('bg-primary', 'text-on-primary');
+                        
+                        // Show a subtle toast effect (optional log)
+                        console.log('Employee promoted successfully');
+                    }, 1200);
+                });
+            }
+        });
+
+        // Search bar focus effect
+        const searchInput = document.querySelector('input[type="text"]');
+        searchInput.addEventListener('focus', () => {
+            searchInput.classList.add('w-80', 'border-primary');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.classList.remove('w-80', 'border-primary');
+        });
+    </script>
+</body></html>
