@@ -373,7 +373,8 @@ export const Reminders: React.FC = () => {
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     placeholder="e.g. Call Client Alexander"
-                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                    disabled={isCreatingReminder}
+                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                 />
                             </div>
 
@@ -383,7 +384,8 @@ export const Reminders: React.FC = () => {
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     placeholder="Brief task notes..."
-                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary h-20 resize-none"
+                                    disabled={isCreatingReminder}
+                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary h-20 resize-none disabled:opacity-50"
                                 />
                             </div>
 
@@ -395,7 +397,8 @@ export const Reminders: React.FC = () => {
                                         required
                                         value={scheduledTriggerAt}
                                         onChange={(e) => setScheduledTriggerAt(e.target.value)}
-                                        className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                        disabled={isCreatingReminder}
+                                        className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -403,7 +406,8 @@ export const Reminders: React.FC = () => {
                                     <select
                                         value={clientId}
                                         onChange={(e) => setClientId(e.target.value)}
-                                        className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                        disabled={isCreatingReminder}
+                                        className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                     >
                                         <option value="">-- Optional --</option>
                                         {clients?.map((c: any) => (
@@ -418,8 +422,9 @@ export const Reminders: React.FC = () => {
                             <div className="flex gap-4 pt-4 border-t border-colorNeutral/20">
                                 <button
                                     type="button"
+                                    disabled={isCreatingReminder}
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 py-2 border border-colorNeutral/30 text-tInverted text-sm font-semibold rounded-lg hover:bg-tSecondary"
+                                    className="flex-1 py-2 border border-colorNeutral/30 text-tInverted text-sm font-semibold rounded-lg hover:bg-tSecondary disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>

@@ -1,10 +1,42 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { useDealStore } from '../../store/dealStore'
 import { TrendingUp, Handshake, MapPin, Loader2 } from 'lucide-react'
 
 export const Dashboard: React.FC = () => {
-    const { deals, getDeals, isFetchingDeals } = (useDealStore as any)()
+    const { deals, getDeals, isFetchingDeals, getParticularDeal, setDealModalOpen } = (useDealStore as any)()
+    const handleDealRowClick = async (dealId: string) => {
+        await getParticularDeal('id', dealId)
+        setDealModalOpen(true)
+    }
+
+    const chartScrollRef = useRef<HTMLDivElement>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [startX, setStartX] = useState(0)
+    const [scrollLeftStart, setScrollLeftStart] = useState(0)
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!chartScrollRef.current) return
+        setIsDragging(true)
+        setStartX(e.pageX - chartScrollRef.current.offsetLeft)
+        setScrollLeftStart(chartScrollRef.current.scrollLeft)
+    }
+
+    const handleMouseLeave = () => {
+        setIsDragging(false)
+    }
+
+    const handleMouseUp = () => {
+        setIsDragging(false)
+    }
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !chartScrollRef.current) return
+        e.preventDefault()
+        const x = e.pageX - chartScrollRef.current.offsetLeft
+        const walk = (x - startX) * 1.5 // Scroll speed multiplier
+        chartScrollRef.current.scrollLeft = scrollLeftStart - walk
+    }
 
     useEffect(() => {
         if (!deals || deals.length === 0) {
@@ -14,8 +46,8 @@ export const Dashboard: React.FC = () => {
 
     // Calculate real metrics
     const totalDeals = deals?.length || 0
-    const estimatedAmount = deals?.reduce((acc: number, d: any) => acc + (d.amount || 0), 0) || 0
-    const totalCost = deals?.reduce((acc: number, d: any) => acc + (d.estimatedCost || 0), 0) || 0
+    const estimatedAmount = deals?.reduce((acc: number, d: any) => acc + Number(d.amount || 0), 0) || 0
+    const totalCost = deals?.reduce((acc: number, d: any) => acc + Number(d.estimatedCost || 0), 0) || 0
     const profitLoss = estimatedAmount - totalCost
 
     const displayEst = `₹${(estimatedAmount / 100000).toFixed(1)}L` 
@@ -44,17 +76,17 @@ export const Dashboard: React.FC = () => {
         return dateA - dateB
     })
 
-    // Take up to 10 deals for display
-    const displayedDeals = sortedDeals.slice(-10)
+    // Display all deals inside the scrollable chart
+    const displayedDeals = sortedDeals
 
     // Calculate maximum absolute profit/loss for scaling
     const maxVal = Math.max(
-        ...displayedDeals.map((d: any) => Math.abs((d.amount || 0) - (d.estimatedCost || 0))),
-        50000
+        ...displayedDeals.map((d: any) => Math.abs(Number(d.amount || 0) - Number(d.estimatedCost || 0))),
+        20000
     )
 
     const chartData = displayedDeals.map((deal: any, index: number) => {
-        const dealProfitLoss = (deal.amount || 0) - (deal.estimatedCost || 0)
+        const dealProfitLoss = Number(deal.amount || 0) - Number(deal.estimatedCost || 0)
         const heightPercent = Math.min(100, Math.round((Math.abs(dealProfitLoss) / maxVal) * 100))
         return {
             id: deal.id || index,
@@ -183,57 +215,75 @@ export const Dashboard: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex-1 flex relative">
+                    <div className="flex-1 flex relative overflow-hidden">
                         {/* Y-Axis Labels */}
-                        <div className="w-20 flex flex-col justify-between text-xs text-tPrimary/60 pb-8 pr-4 text-right">
+                        <div className="w-20 flex flex-col justify-between text-xs text-tPrimary/60 pb-8 pr-4 text-right flex-shrink-0">
                             <span>{formatTick(chartMaxVal)}</span>
                             <span>{formatTick(chartMaxVal / 2)}</span>
                             <span>₹0</span>
                             <span>{formatTick(-chartMaxVal / 2)}</span>
                             <span>{formatTick(-chartMaxVal)}</span>
                         </div>
-                        {/* Chart grid background */}
-                        <div className="flex-1 relative border-l border-b border-colorNeutral/20 mb-8 bg-gradient-to-b from-colorNeutral/5 to-transparent">
-                            <div className="absolute w-full h-[1px] bg-colorNeutral/20 top-1/2 -translate-y-1/2 z-10"></div>
-                            {/* Bar container */}
-                            {chartData.length > 0 ? (
-                                <div className="absolute inset-0 flex items-center justify-around px-4">
-                                    {chartData.map((data: any) => {
-                                        const isProfit = data.profitLoss >= 0
-                                        return (
-                                            <div key={data.id} className="relative h-full flex flex-col justify-center items-center w-8 group">
-                                                {/* Bar */}
-                                                <div 
-                                                    className={`absolute w-full rounded-sm transition-all duration-500 cursor-pointer ${
-                                                        isProfit 
-                                                            ? 'bottom-1/2 bg-[#4ADE80] hover:bg-[#4ADE80]/80 rounded-t-sm' 
-                                                            : 'top-1/2 bg-red-400 hover:bg-red-400/80 rounded-b-sm'
-                                                    }`}
-                                                    style={{ height: `${data.heightPercent * 0.5}%` }} // Multiply by 0.5 because baseline is at 50%
-                                                ></div>
-                                                {/* Tooltip */}
-                                                <div className="absolute bottom-full mb-2 bg-[#261f09] border border-colorNeutral/40 text-tInverted text-[10px] rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-xl min-w-[120px] text-center">
-                                                    <p className="font-bold truncate">{data.name}</p>
-                                                    <p className={`font-semibold mt-0.5 ${isProfit ? 'text-[#4ADE80]' : 'text-red-400'}`}>
-                                                        {isProfit ? '+' : ''}{formatCurrency(data.profitLoss)}
-                                                    </p>
+                        {/* Scrollable wrapper for chart grid + bars and horizontal labels */}
+                        <div 
+                            ref={chartScrollRef}
+                            onMouseDown={handleMouseDown}
+                            onMouseLeave={handleMouseLeave}
+                            onMouseUp={handleMouseUp}
+                            onMouseMove={handleMouseMove}
+                            className={`flex-1 overflow-x-auto custom-scrollbar flex flex-col pb-2 select-none ${
+                                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                            }`}
+                        >
+                            <div 
+                                className="flex-1 relative border-l border-b border-colorNeutral/20 bg-gradient-to-b from-colorNeutral/5 to-transparent h-[300px]"
+                                style={{ minWidth: `${Math.max(100, chartData.length * 48)}px` }}
+                            >
+                                <div className="absolute w-full h-[1px] bg-colorNeutral/20 top-1/2 -translate-y-1/2 z-10"></div>
+                                {/* Bar container */}
+                                {chartData.length > 0 ? (
+                                    <div className="absolute inset-0 flex items-center justify-around px-4">
+                                        {chartData.map((data: any) => {
+                                            const isProfit = data.profitLoss >= 0
+                                            return (
+                                                <div key={data.id} className="relative h-full flex flex-col justify-center items-center w-8 group">
+                                                    {/* Bar */}
+                                                    <div 
+                                                        className={`absolute w-full rounded-sm transition-all duration-500 cursor-pointer ${
+                                                            isProfit 
+                                                                ? 'bottom-1/2 bg-[#4ADE80] hover:bg-[#4ADE80]/80 rounded-t-sm' 
+                                                                : 'top-1/2 bg-red-400 hover:bg-red-400/80 rounded-b-sm'
+                                                        }`}
+                                                        style={{ height: `${data.heightPercent * 0.5}%` }} // Multiply by 0.5 because baseline is at 50%
+                                                    ></div>
+                                                    {/* Tooltip */}
+                                                    <div className="absolute bottom-full mb-2 bg-[#261f09] border border-colorNeutral/40 text-tInverted text-[10px] rounded p-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none shadow-xl min-w-[120px] text-center">
+                                                        <p className="font-bold truncate">{data.name}</p>
+                                                        <p className={`font-semibold mt-0.5 ${isProfit ? 'text-[#4ADE80]' : 'text-red-400'}`}>
+                                                            {isProfit ? '+' : ''}{formatCurrency(data.profitLoss)}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-tPrimary/60 text-sm">
-                                    <TrendingUp className="w-8 h-8 opacity-40 mb-2" />
-                                    No transaction performance data available
-                                </div>
-                            )}
+                                            )
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-tPrimary/60 text-sm">
+                                        <TrendingUp className="w-8 h-8 opacity-40 mb-2" />
+                                        No transaction performance data available
+                                    </div>
+                                )}
+                            </div>
+                            {/* Scrollable horizontal labels bar */}
+                            <div 
+                                className="flex justify-around text-xs text-tPrimary/40 mt-2 h-6 flex-shrink-0"
+                                style={{ minWidth: `${Math.max(100, chartData.length * 48)}px` }}
+                            >
+                                {chartData.map((data: any) => (
+                                    <span key={data.id} className="w-8 text-center">{data.label}</span>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex justify-around ml-20 text-xs text-tPrimary/40">
-                        {chartData.map((data: any) => (
-                            <span key={data.id} className="w-8 text-center">{data.label}</span>
-                        ))}
                     </div>
                 </section>
 
@@ -257,7 +307,11 @@ export const Dashboard: React.FC = () => {
                                 <tbody className="divide-y divide-colorNeutral/10 text-sm">
                                     {deals?.length > 0 ? (
                                         deals.slice(0, 3).map((deal: any, index: number) => (
-                                            <tr key={deal.id || index} className="hover:bg-colorSecondary/30 transition-colors">
+                                            <tr 
+                                                key={deal.id || index} 
+                                                onClick={() => handleDealRowClick(deal.id)}
+                                                className="hover:bg-colorSecondary/30 transition-colors cursor-pointer"
+                                            >
                                                 <td className="px-6 py-4 font-bold text-tInverted">{deal.dealName || 'Renewal Deal'}</td>
                                                 <td className="px-6 py-4">
                                                     <span className="px-2 py-0.5 bg-colorPrimary/20 text-colorPrimary text-[10px] rounded uppercase font-bold">

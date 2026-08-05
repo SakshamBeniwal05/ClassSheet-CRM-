@@ -8,7 +8,10 @@ import imagekit from "../../services/service.storageBucket.js";
 const getUploadAuthParams = async (req: Request, res: Response) => {
     try {
         const authParams = imagekit.getAuthenticationParameters();
-        return res.status(200).json(new ApiResponse(200, authParams, "Authentication parameters generated successfully"));
+        return res.status(200).json(new ApiResponse(200, {
+            ...authParams,
+            publicKey: process.env.IMAGEKIT_PUBLIC_KEY
+        }, "Authentication parameters generated successfully"));
     } catch (error) {
         return res.status(500).json({ error: "Failed to generate authentication parameters" });
     }

@@ -97,23 +97,43 @@ const getParticularDeal = async (req: Request, res: Response) => {
         const organisationId = req.user?.organisationId;
         const userId = req.user?.userId;
         const role = req.user?.role;
-        const ALLOWED_CLIENT_SEARCH_FIELDS = ["id", "email"] as const;
-        type ClientSearchField = typeof ALLOWED_CLIENT_SEARCH_FIELDS[number];
+        const ALLOWED_DEAL_SEARCH_FIELDS = ["id", "clientId", "dealOrganisation", "client", "author"] as const;
+        type DealSearchField = typeof ALLOWED_DEAL_SEARCH_FIELDS[number];
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
         const isOwnerOrAdmin = role === "Owner" || role === "Admin";
-        if (!ALLOWED_CLIENT_SEARCH_FIELDS.includes(criteria as ClientSearchField)) {
+        if (!ALLOWED_DEAL_SEARCH_FIELDS.includes(criteria as DealSearchField)) {
             throw new ApiError(400, "Invalid search criteria");
         }
+
+        let whereClause: any = {
+            dealOrganisation: organisationId,
+            ...(isOwnerOrAdmin ? {} : { authorId: userId }),
+        };
+
+        if (criteria === "client") {
+            whereClause.client = {
+                name: {
+                    contains: value,
+                    mode: "insensitive"
+                }
+            };
+        } else if (criteria === "author") {
+            whereClause.author = {
+                name: {
+                    contains: value,
+                    mode: "insensitive"
+                }
+            };
+        } else {
+            whereClause[criteria] = value;
+        }
+
         const deal = await prisma.deal.findFirst({
-            where: {
-                [criteria]: value,
-                dealOrganisation: organisationId,
-                ...(isOwnerOrAdmin ? {} : { authorId: userId }), // employees can only fetch their own deal
-            },
+            where: whereClause,
             include: {
                 client: true,
                 author: { select: { id: true, name: true, email: true } },

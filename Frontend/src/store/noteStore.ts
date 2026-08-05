@@ -18,11 +18,14 @@ export const useNoteStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.post('/notes', data)
-            set({ notes: [...get().notes, res.data.data.note || res.data.data] })
+            const newNote = res.data.data.note || res.data.data
+            set({ notes: [...get().notes, newNote] })
             toast.success(res.data.message || "Note created successfully");
+            return newNote;
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create note";
             toast.error(errMsg);
+            return null;
         } finally {
             set({ isCreatingNote: false })
         }

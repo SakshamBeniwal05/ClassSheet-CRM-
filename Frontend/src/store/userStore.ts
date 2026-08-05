@@ -11,6 +11,8 @@ export const userStore = create((set, get: any) => ({
     isJoining: false,
     currentPage: 'dashboard',
     setCurrentPage: (page: string) => set({ currentPage: page }),
+    isSidebarMinimized: false,
+    toggleSidebarMinimized: () => set((state: any) => ({ isSidebarMinimized: !state.isSidebarMinimized })),
     
     checkAuth: async () => {
         set({ isCheckingAuth: true })
@@ -58,7 +60,7 @@ export const userStore = create((set, get: any) => ({
             const res = await apiCaller.post('/auth/registerWithNewOrganisation', data)
             set({ userData: res.data })
             toast.success("Organisation registered and user logged in successfully");
-            return true;
+            return true;    
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to register";
             toast.error(errMsg);

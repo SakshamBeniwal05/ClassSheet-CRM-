@@ -10,6 +10,8 @@ export const useClientStore = create((set, get: any) => ({
     isFetchingClient: false,
     isUpdatingClient: false,
     isDeletingClient: false,
+    isClientModalOpen: false,
+    setClientModalOpen: (open: boolean) => set({ isClientModalOpen: open }),
 
     createClient: async (data: { name: string, email: string, role?: string }) => {
         set({ isCreatingClient: true })
@@ -22,6 +24,7 @@ export const useClientStore = create((set, get: any) => ({
             const res = await apiCaller.post('/clients', data)
             set({ clients: [...get().clients, res.data.data.client] })
             toast.success(res.data.message || "Client created successfully");
+            return res.data.data.client
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create client";
             toast.error(errMsg);
@@ -43,11 +46,11 @@ export const useClientStore = create((set, get: any) => ({
         }
     },
 
-    getParticularClient: async (id: string) => {
+    getParticularClient: async (criteria: string, value: string) => {
         set({ isFetchingClient: true })
         try {
-            const res = await apiCaller.get(`/clients/${id}`)
-            set({ particularClient: res.data.data })
+            const res = await apiCaller.get(`/clients/${criteria}/${value}`)
+            set({ particularClient: res.data.data.client || res.data.data })
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to fetch client details";
             toast.error(errMsg);

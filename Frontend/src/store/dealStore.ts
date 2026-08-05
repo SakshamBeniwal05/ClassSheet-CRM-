@@ -10,6 +10,8 @@ export const useDealStore = create((set, get: any) => ({
     isFetchingDeal: false,
     isUpdatingDeal: false,
     isDeletingDeal: false,
+    isDealModalOpen: false,
+    setDealModalOpen: (open: boolean) => set({ isDealModalOpen: open }),
 
     createDeal: async (data: { clientId: string, amount: number, estimatedCost?: number, stateOfDeal: string, currency?: string, scheduled?: string }) => {
         set({ isCreatingDeal: true })
@@ -19,8 +21,10 @@ export const useDealStore = create((set, get: any) => ({
                 return;
             }
             const res = await apiCaller.post('/deals', data)
-            set({ deals: [...get().deals, res.data.data.deal] })
+            const newDeal = res.data.data.deal
+            set({ deals: [...get().deals, newDeal] })
             toast.success(res.data.message || "Deal created successfully");
+            return newDeal;
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to create deal";
             toast.error(errMsg);
@@ -42,11 +46,11 @@ export const useDealStore = create((set, get: any) => ({
         }
     },
 
-    getParticularDeal: async (id: string) => {
+    getParticularDeal: async (criteria: string, value: string) => {
         set({ isFetchingDeal: true })
         try {
-            const res = await apiCaller.get(`/deals/${id}`)
-            set({ particularDeal: res.data.data })
+            const res = await apiCaller.get(`/deals/${criteria}/${value}`)
+            set({ particularDeal: res.data.data.deal || res.data.data })
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to fetch deal details";
             toast.error(errMsg);

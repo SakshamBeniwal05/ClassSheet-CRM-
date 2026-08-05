@@ -13,4 +13,5 @@ export const dealRouter = Router();
 dealRouter.use(verification);
 
 dealRouter.route("/").post(createDeal).get(getDeals);
-dealRouter.route("/:id").get(getParticularDeal).put(updateDeal).delete(deleteDeal);
+dealRouter.route("/:criteria/:value").get(getParticularDeal);
+dealRouter.route("/:id").put(updateDeal).delete(deleteDeal);

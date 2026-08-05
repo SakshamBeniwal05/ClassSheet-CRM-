@@ -8,32 +8,23 @@ const TABS: [MenuItem, MenuItem] = [
   { label: "Register", value: "register" },
 ];
 
-const SUB_TABS: [MenuItem, MenuItem] = [
-  { label: "New Org", value: "newOrg" },
-  { label: "Existing Org", value: "existingOrg" },
-];
-
-
 interface SubSelectToggleDemoProps {
   tab: MenuItem
   setTab: (tab: MenuItem) => void
-  subTab: MenuItem
-  setSubTab: (tab: MenuItem) => void
+  disabled?: boolean
 }
 
-const SubSelectToggleDemo = ({ tab, setTab, subTab, setSubTab }: SubSelectToggleDemoProps) => {
-
+const SubSelectToggleDemo = ({ tab, setTab, disabled }: SubSelectToggleDemoProps) => {
   return (
-    <div className="flex justify-center py-8">
+    <div className="flex justify-center py-4 w-full">
       <SubSelectToggle
         tabs={TABS}
-        subTabs={SUB_TABS}
         tab={tab}
         setTab={setTab}
-        subTab={subTab}
-        setSubTab={setSubTab}
+        disabled={disabled}
       />
     </div>
   );
 };
+
 export default SubSelectToggleDemo;

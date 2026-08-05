@@ -1,15 +1,63 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { DashboardLayout } from '../../components/layout/DashboardLayout'
 import { useClientStore } from '../../store/clientStore'
-import { UserPlus, Download, Edit, X, Loader2 } from 'lucide-react'
+import { userStore } from '../../store/userStore'
+import { UserPlus, Download, X, Loader2, Trash2, Search, Edit2 } from 'lucide-react'
 
 export const Clients: React.FC = () => {
-    const { clients, getClients, createClient, isFetchingClients, isCreatingClient } = (useClientStore as any)()
+    const { clients, getClients, createClient, isFetchingClients, isCreatingClient, getParticularClient, setClientModalOpen, deleteClient } = (useClientStore as any)()
+    const { userData } = (userStore as any)()
+    const currentUser = userData?.data?.user
+    const currentUserId = currentUser?.id
+    const currentUserRole = currentUser?.role
+    const isOwnerOrAdmin = currentUserRole === 'Owner' || currentUserRole === 'Admin'
+
+    const handleRowClick = async (clientId: string) => {
+        await getParticularClient('id', clientId)
+        setClientModalOpen(true)
+    }
+
+    const tableScrollRef = useRef<HTMLDivElement>(null)
+    const [isDragging, setIsDragging] = useState(false)
+    const [startX, setStartX] = useState(0)
+    const [scrollLeftStart, setScrollLeftStart] = useState(0)
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!tableScrollRef.current) return
+        setIsDragging(true)
+        setStartX(e.pageX - tableScrollRef.current.offsetLeft)
+        setScrollLeftStart(tableScrollRef.current.scrollLeft)
+    }
+
+    const handleMouseLeave = () => {
+        setIsDragging(false)
+    }
+
+    const handleMouseUp = () => {
+        setIsDragging(false)
+    }
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !tableScrollRef.current) return
+        e.preventDefault()
+        const x = e.pageX - tableScrollRef.current.offsetLeft
+        const walk = (x - startX) * 1.5
+        tableScrollRef.current.scrollLeft = scrollLeftStart - walk
+    }
     const [search, setSearch] = useState('')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [role, setRole] = useState('')
+
+    const [searchCriteria, setSearchCriteria] = useState<'email' | 'id'>('email')
+    const [searchValue, setSearchValue] = useState('')
+
+    const handleBackendSearch = async () => {
+        if (!searchValue.trim()) return
+        await getParticularClient(searchCriteria, searchValue.trim())
+        setClientModalOpen(true)
+    }
 
     useEffect(() => {
         if (!clients || clients.length === 0) {
@@ -88,15 +136,45 @@ export const Clients: React.FC = () => {
 
                 {/* Data Table Section */}
                 <div className="bg-tSecondary border border-colorNeutral/10 rounded-xl overflow-hidden shadow-xl">
-                    <div className="px-6 py-4 border-b border-colorNeutral/20 flex justify-between items-center bg-colorSecondary/30">
-                        <div className="flex items-center gap-4">
+                    <div className="px-6 py-4 border-b border-colorNeutral/20 flex justify-between items-center bg-colorSecondary/30 flex-wrap gap-4">
+                        <div className="flex items-center gap-4 flex-wrap">
+                            
                             <input
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Filter by name, email or ID..."
+                                placeholder="Filter local list..."
                                 className="bg-colorSecondary border border-colorNeutral/30 rounded-lg px-4 py-1.5 text-xs text-tInverted placeholder-tPrimary/50 focus:outline-none focus:border-colorPrimary"
                             />
+
+                            {/* Backend search bar */}
+                            <div className="flex items-center gap-2 border border-colorNeutral/20 bg-colorSecondary/40 rounded-lg px-2.5 py-1 text-xs">
+                                <span className="text-[10px] uppercase font-bold text-tPrimary/60">Find Particular:</span>
+                                <select
+                                    value={searchCriteria}
+                                    onChange={(e) => setSearchCriteria(e.target.value as 'email' | 'id')}
+                                    className="bg-transparent border-none text-xs font-semibold text-tInverted focus:outline-none cursor-pointer"
+                                >
+                                    <option value="email" className="bg-colorSecondary">Email</option>
+                                    <option value="id" className="bg-colorSecondary">Client ID</option>
+                                </select>
+                                <div className="relative">
+                                    <input
+                                        className="bg-colorSecondary border border-colorNeutral/30 rounded-full pl-8 pr-3 py-0.5 text-xs text-tInverted placeholder-tPrimary/50 focus:outline-none focus:border-colorPrimary w-44"
+                                        placeholder={`Enter ${searchCriteria === 'email' ? 'email' : 'ID'}...`}
+                                        type="text"
+                                        value={searchValue}
+                                        onChange={(e) => setSearchValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleBackendSearch()
+                                            }
+                                        }}
+                                    />
+                                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-tPrimary/60" />
+                                </div>
+                            </div>
+
                             <span className="text-xs text-tPrimary opacity-60">
                                 Showing {filteredClients.length} of {clients?.length || 0} clients
                             </span>
@@ -108,16 +186,25 @@ export const Clients: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
+                    <div 
+                        ref={tableScrollRef}
+                        onMouseDown={handleMouseDown}
+                        onMouseLeave={handleMouseLeave}
+                        onMouseUp={handleMouseUp}
+                        onMouseMove={handleMouseMove}
+                        className={`overflow-x-auto custom-scrollbar select-none ${
+                            isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                        }`}
+                    >
                         <table className="w-full text-left border-collapse">
                             <thead className="bg-colorSecondary border-b border-colorNeutral/20">
                                 <tr>
                                     <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Name</th>
-                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Email</th>
                                     <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Role</th>
-                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Client ID</th>
-                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Owner ID</th>
-                                    <th className="px-6 py-4"></th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider">Author Name</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider text-center">Total Deals</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-tPrimary/60 uppercase tracking-wider text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-colorNeutral/10 text-sm">
@@ -136,7 +223,11 @@ export const Clients: React.FC = () => {
                                     </tr>
                                 ) : (
                                     filteredClients.map((client: any) => (
-                                        <tr key={client.id} className="hover:bg-tSecondary/30 transition-colors group">
+                                        <tr 
+                                            key={client.id} 
+                                            onClick={() => handleRowClick(client.id)}
+                                            className="hover:bg-tSecondary/30 transition-colors group cursor-pointer"
+                                        >
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-colorPrimary/10 border border-colorPrimary/20 flex items-center justify-center text-colorPrimary font-bold text-xs uppercase">
@@ -148,18 +239,44 @@ export const Clients: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-tPrimary">{client.email}</td>
                                             <td className="px-6 py-4">
                                                 <span className="px-2.5 py-0.5 bg-colorSecondary border border-colorNeutral/30 rounded text-xs text-colorTertiary">
                                                     {client.role || 'Client'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 font-mono text-xs text-tPrimary">{client.id?.slice(0, 8)}...</td>
-                                            <td className="px-6 py-4 font-mono text-xs text-tPrimary">{client.ownerId?.slice(0, 8)}...</td>
+                                            <td className="px-6 py-4 text-tPrimary">{client.email}</td>
+                                            <td className="px-6 py-4 text-tPrimary font-semibold">{client.author?.name || 'System / Owner'}</td>
+                                            <td className="px-6 py-4 text-center text-tInverted font-bold">{client._count?.deals ?? 0}</td>
                                             <td className="px-6 py-4 text-right">
-                                                <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:text-colorPrimary">
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
+                                                <div className="flex justify-end gap-2">
+                                                    {(isOwnerOrAdmin || client.authorId === currentUserId) && (
+                                                        <>
+                                                            <button 
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation()
+                                                                    await getParticularClient('id', client.id)
+                                                                    setClientModalOpen(true)
+                                                                }}
+                                                                className="p-1.5 hover:text-[#E48520] rounded hover:bg-tSecondary/50 transition-colors cursor-pointer bg-transparent border-none"
+                                                                title="Update Client"
+                                                            >
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    if (window.confirm("Are you sure you want to delete this client?")) {
+                                                                        deleteClient(client.id)
+                                                                    }
+                                                                }}
+                                                                className="p-1.5 hover:text-red-400 rounded hover:bg-tSecondary/50 transition-colors cursor-pointer bg-transparent border-none"
+                                                                title="Delete Client"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -191,7 +308,8 @@ export const Clients: React.FC = () => {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="e.g. Marcus Bennett"
-                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                    disabled={isCreatingClient}
+                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                 />
                             </div>
                             <div>
@@ -202,7 +320,8 @@ export const Clients: React.FC = () => {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="e.g. m.bennett@quantum.com"
-                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                    disabled={isCreatingClient}
+                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                 />
                             </div>
                             <div>
@@ -212,15 +331,17 @@ export const Clients: React.FC = () => {
                                     value={role}
                                     onChange={(e) => setRole(e.target.value)}
                                     placeholder="e.g. Chief Strategist"
-                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary"
+                                    disabled={isCreatingClient}
+                                    className="w-full bg-tSecondary border border-colorNeutral/40 rounded-lg px-4 py-2 text-sm text-tInverted focus:outline-none focus:border-colorPrimary disabled:opacity-50"
                                 />
                             </div>
 
                             <div className="flex gap-4 pt-4 border-t border-colorNeutral/20">
                                 <button
                                     type="button"
+                                    disabled={isCreatingClient}
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 py-2 border border-colorNeutral/30 text-tInverted text-sm font-semibold rounded-lg hover:bg-tSecondary"
+                                    className="flex-1 py-2 border border-colorNeutral/30 text-tInverted text-sm font-semibold rounded-lg hover:bg-tSecondary disabled:opacity-50"
                                 >
                                     Cancel
                                 </button>

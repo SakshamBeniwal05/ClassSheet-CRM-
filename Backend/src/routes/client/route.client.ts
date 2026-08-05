@@ -13,4 +13,5 @@ export const clientRouter = Router();
 clientRouter.use(verification);
 
 clientRouter.route("/").post(verification,createClient).get(verification,getClients);
-clientRouter.route("/:id").get(verification,getParticularClient).put(verification,updateClient).delete(verification,deleteClient);
+clientRouter.route("/:criteria/:value").get(verification, getParticularClient);
+clientRouter.route("/:id").put(verification, updateClient).delete(verification, deleteClient);
