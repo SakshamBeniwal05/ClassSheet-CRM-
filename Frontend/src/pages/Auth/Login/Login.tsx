@@ -14,7 +14,7 @@ const loadThreeJS = (): Promise<any> => {
             return;
         }
         const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js";
+        script.src = "https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js";
         script.async = true;
         script.onload = () => {
             resolve((window as any).THREE);
@@ -430,11 +430,6 @@ const Login = () => {
             <section className="hidden md:flex w-1/2 h-full relative overflow-hidden items-center justify-center bg-colorSecondary">
                 {/* 3D Geometric Animation Canvas Container */}
                 <div ref={containerRef} className="absolute inset-0 w-full h-full" />
-
-                {/* Background Overlay for Text Contrast */}
-                <div className="absolute inset-0 bg-gradient-to-t from-colorSecondary via-transparent to-transparent opacity-60 pointer-events-none" />
-                <div className="absolute inset-0 bg-colorSecondary/10 backdrop-blur-[2px] pointer-events-none" />
-
                 {/* Overlay Content */}
                 <div className="relative z-10 w-full max-w-xl px-12 text-left">
                     <div className="glass-panel p-8 rounded-xl space-y-6 shadow-2xl">

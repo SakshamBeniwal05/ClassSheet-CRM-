@@ -1,0 +1,419 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Reminders - Core CRM</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #191302;
+            color: #f1e1bf;
+            overflow-x: hidden;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            grid-template-rows: 40px repeat(24, 60px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #221b06;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #5a403c;
+            border-radius: 10px;
+        }
+        .glass-card {
+            background: rgba(36, 36, 36, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(219, 204, 171, 0.1);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#f1e1bf",
+                        "outline-variant": "#5a403c",
+                        "error-container": "#93000a",
+                        "inverse-surface": "#f1e1bf",
+                        "on-tertiary-fixed": "#2e1500",
+                        "on-tertiary-fixed-variant": "#6d3a00",
+                        "tertiary-fixed": "#ffdcc2",
+                        "surface-dim": "#191302",
+                        "on-tertiary-container": "#432100",
+                        "on-secondary": "#303030",
+                        "surface-tint": "#ffb4a6",
+                        "primary-fixed": "#ffdad4",
+                        "on-primary-fixed": "#3f0300",
+                        "inverse-on-surface": "#383018",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#c8c6c5",
+                        "tertiary": "#ffb77a",
+                        "surface-bright": "#413820",
+                        "secondary-fixed": "#e4e2e1",
+                        "secondary": "#c8c6c5",
+                        "primary-fixed-dim": "#ffb4a6",
+                        "surface-variant": "#3d341c",
+                        "primary-container": "#fc593e",
+                        "on-primary": "#660700",
+                        "surface-container-low": "#221b06",
+                        "on-secondary-fixed-variant": "#474746",
+                        "on-tertiary": "#4c2700",
+                        "surface-container-lowest": "#140d00",
+                        "surface-container-high": "#312913",
+                        "primary": "#ffb4a6",
+                        "on-primary-container": "#5a0600",
+                        "on-background": "#f1e1bf",
+                        "on-surface-variant": "#e3beb7",
+                        "on-primary-fixed-variant": "#900f00",
+                        "background": "#191302",
+                        "outline": "#aa8983",
+                        "surface-container": "#261f09",
+                        "on-secondary-container": "#b7b5b4",
+                        "error": "#ffb4ab",
+                        "tertiary-container": "#d67a12",
+                        "tertiary-fixed-dim": "#ffb77a",
+                        "surface": "#191302",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "surface-container-highest": "#3d341c",
+                        "on-error": "#690005",
+                        "secondary-container": "#474746",
+                        "inverse-primary": "#b52612"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "16px",
+                        "base": "4px",
+                        "sm": "8px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "lg": "24px",
+                        "margin-mobile": "16px",
+                        "md": "16px",
+                        "margin-desktop": "32px"
+                    },
+                    "fontFamily": {
+                        "label-md": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background">
+<!-- SIDE NAVIGATION BAR -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface dark:bg-surface border-r border-outline-variant dark:border-outline-variant flex flex-col h-full py-lg z-50">
+<div class="px-lg mb-xl">
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary">CRM Admin</h1>
+<p class="text-on-surface-variant font-label-md text-[10px] uppercase tracking-widest opacity-60">Managing Director</p>
+</div>
+<nav class="flex-1 px-sm space-y-1">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+                Clients
+            </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="handshake">handshake</span>
+                Deals
+            </a>
+<!-- Reminders is active -->
+<a class="flex items-center gap-md px-md py-sm bg-secondary-container text-on-secondary-container border-l-4 border-primary font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
+                Reminders
+            </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="badge">badge</span>
+                Employees
+            </a>
+</nav>
+<div class="mt-auto px-lg mb-lg">
+<button class="w-full bg-primary-container text-on-primary-container font-bold py-md rounded-lg flex items-center justify-center gap-sm active:scale-[0.98] transition-transform">
+<span class="material-symbols-outlined">add</span>
+                New Deal
+            </button>
+</div>
+<div class="px-sm pt-md border-t border-outline-variant">
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+                Settings
+            </a>
+<a class="flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                Logout
+            </a>
+</div>
+</aside>
+<!-- TOP APP BAR -->
+<header class="flex justify-between items-center w-full px-lg py-md ml-[280px] w-[calc(100%-280px)] bg-surface-container dark:bg-surface-container docked full-width top-0 sticky border-b border-outline-variant shadow-sm z-40">
+<div class="flex items-center gap-xl">
+<span class="font-headline-lg text-headline-lg font-black text-on-surface">Core CRM</span>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="bg-surface-container-lowest border border-outline-variant rounded-full pl-10 pr-lg py-sm text-sm focus:border-primary outline-none w-64" placeholder="Search events..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer" data-icon="help">help</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-cover bg-center border border-primary shadow-sm" data-alt="A high-end professional headshot of a senior managing director in a charcoal grey tailored suit, captured against a sophisticated dark corporate background with warm amber backlighting. The lighting is crisp and modern, emphasizing leadership and authority in a premium CRM environment." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAJ_IJ8a_cfmtwMja2Kpqp4FLlzy4p4JYGlJfsdv8SwFO8sjWN-KRfSeIifkDb954jQAYZ_Lc77ZVO0fKibyxJt4J7DJ47T1HgqNFHfoIwIjS7zv4UBusKQKbrSg3nJCVxbfrHxYbtOkTEfFEFMTZopuGenFeW0_AjxQG3aDOaTJeo4q_x4eCj9v3-roXjgqLScrZWyeKXaVo5yGnWsuThhWaWvwruVYCeHEXXhGS_WDpFlkwfhqtVpBXzcRASFtBiz0JlcNHsJa84')"></div>
+</div>
+</header>
+<!-- MAIN CONTENT AREA -->
+<main class="ml-[280px] p-lg">
+<!-- Calendar Header -->
+<div class="flex items-center justify-between mb-lg">
+<div class="flex items-center gap-lg">
+<h2 class="font-headline-xl text-headline-xl text-on-surface">October 2023</h2>
+<div class="flex border border-outline-variant rounded-lg overflow-hidden">
+<button class="px-md py-sm bg-surface-container-high hover:bg-surface-container-highest transition-colors border-r border-outline-variant"><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="px-md py-sm bg-surface-container hover:bg-surface-container-highest transition-colors font-label-md text-label-md">Today</button>
+<button class="px-md py-sm bg-surface-container-high hover:bg-surface-container-highest transition-colors border-l border-outline-variant"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+<div class="flex gap-sm">
+<button class="bg-surface-container-highest text-on-surface px-lg py-sm rounded-lg font-label-md border border-outline-variant active:scale-95 transition-all">Day</button>
+<button class="bg-primary text-on-primary px-lg py-sm rounded-lg font-label-md font-bold shadow-lg active:scale-95 transition-all">Week</button>
+<button class="bg-surface-container-highest text-on-surface px-lg py-sm rounded-lg font-label-md border border-outline-variant active:scale-95 transition-all">Month</button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-lg h-[calc(100vh-220px)]">
+<!-- Left Sidebar: Mini Calendar & Filters -->
+<div class="col-span-3 space-y-lg">
+<div class="bg-surface-container p-md rounded-xl border border-outline-variant">
+<div class="flex justify-between items-center mb-md px-sm">
+<span class="font-bold text-sm">Upcoming Tasks</span>
+<span class="material-symbols-outlined text-sm cursor-pointer hover:text-primary">more_vert</span>
+</div>
+<ul class="space-y-sm">
+<li class="flex gap-sm p-sm hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors group">
+<div class="w-1 h-10 bg-primary rounded-full"></div>
+<div>
+<p class="font-bold text-xs">Call CEO Smith</p>
+<p class="text-[10px] text-on-surface-variant">Due: 2:00 PM</p>
+</div>
+</li>
+<li class="flex gap-sm p-sm hover:bg-surface-container-high rounded-lg cursor-pointer transition-colors group">
+<div class="w-1 h-10 bg-tertiary rounded-full"></div>
+<div>
+<p class="font-bold text-xs">Review Contract #49</p>
+<p class="text-[10px] text-on-surface-variant">Due: 5:00 PM</p>
+</div>
+</li>
+</ul>
+</div>
+<div class="bg-surface-container p-md rounded-xl border border-outline-variant">
+<span class="font-bold text-sm mb-md block px-sm">Calendars</span>
+<div class="space-y-md px-sm">
+<label class="flex items-center gap-md cursor-pointer group">
+<input checked="" class="rounded border-outline-variant bg-surface text-primary focus:ring-primary" type="checkbox">
+<span class="text-sm font-label-md group-hover:text-primary transition-colors">Client Meetings</span>
+</label>
+<label class="flex items-center gap-md cursor-pointer group">
+<input checked="" class="rounded border-outline-variant bg-surface text-tertiary focus:ring-tertiary" type="checkbox">
+<span class="text-sm font-label-md group-hover:text-tertiary transition-colors">Deal Closures</span>
+</label>
+<label class="flex items-center gap-md cursor-pointer group">
+<input class="rounded border-outline-variant bg-surface text-error focus:ring-error" type="checkbox">
+<span class="text-sm font-label-md group-hover:text-error transition-colors">Internal Ops</span>
+</label>
+</div>
+</div>
+<!-- Visual Asset: CRM Stats Overlay -->
+<div class="relative h-48 rounded-xl overflow-hidden border border-outline-variant group">
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent z-10 opacity-80"></div>
+<img class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" data-alt="A professional workspace desk with high-end tech equipment, a sleek mechanical watch, and a tablet displaying complex financial CRM charts. The atmosphere is warm and high-stakes with amber light reflecting off metallic surfaces in a dark charcoal room, symbolizing success and detailed planning." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTVycVnawSgcjQzrW_UtB8g2gQdys6uq8I4KYhpqHuGygHbTMgCsw4_iF3Cg8abj0Ed_2BzLJNmvtoWT1c1jTW8iU9ODJyD1RRlwCWzNs3SWG73Up0RI8UJITCTo1LBwwUn80fIfPxEutEXs29ol5q6GTTNFxjRG24-13HH1RMzx1XqMXn02lQ7TJg0psqynh8SrYzrKtAbAUcwPXR5h5W_ZvAyp3pKMdt35lsWgElX2b673UsbSyQjqxFyyLtEpz5kdyrIPRMIO4">
+<div class="absolute bottom-4 left-4 z-20">
+<p class="font-bold text-on-surface">Efficiency Index</p>
+<p class="text-primary text-xl font-black">94%</p>
+</div>
+</div>
+</div>
+<!-- Right Area: Google Calendar Style Grid -->
+<div class="col-span-9 bg-surface-container rounded-xl border border-outline-variant overflow-hidden flex flex-col">
+<!-- Days Header -->
+<div class="grid grid-cols-8 border-b border-outline-variant bg-surface-container-high sticky top-0">
+<div class="p-sm text-center border-r border-outline-variant"></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-on-surface-variant">MON</span><span class="text-lg font-bold">16</span></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-on-surface-variant">TUE</span><span class="text-lg font-bold">17</span></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-primary">WED</span><span class="text-lg font-bold text-primary">18</span></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-on-surface-variant">THU</span><span class="text-lg font-bold">19</span></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-on-surface-variant">FRI</span><span class="text-lg font-bold">20</span></div>
+<div class="p-sm text-center border-r border-outline-variant"><span class="block text-xs font-label-md text-on-surface-variant">SAT</span><span class="text-lg font-bold">21</span></div>
+<div class="p-sm text-center"><span class="block text-xs font-label-md text-on-surface-variant">SUN</span><span class="text-lg font-bold">22</span></div>
+</div>
+<!-- Time Grid Scrollable -->
+<div class="flex-1 overflow-y-auto custom-scrollbar relative">
+<div class="calendar-grid">
+<!-- Hour Column -->
+<script>
+                            const grid = document.querySelector('.calendar-grid');
+                            for(let i = 0; i < 24; i++) {
+                                let hour = i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i-12} PM`;
+                                const hourDiv = document.createElement('div');
+                                hourDiv.className = 'text-[10px] text-right pr-4 pt-1 text-on-surface-variant opacity-40 border-r border-outline-variant/30';
+                                hourDiv.textContent = hour;
+                                grid.appendChild(hourDiv);
+                                
+                                for(let j = 0; j < 7; j++) {
+                                    const cell = document.createElement('div');
+                                    cell.className = 'border-r border-b border-outline-variant/10 relative';
+                                    grid.appendChild(cell);
+                                }
+                            }
+                        </script>
+<!-- Scheduled Events (Absolute Positioned) -->
+<!-- Event 1: Monday 9 AM - 11 AM -->
+<div class="absolute left-[80px] top-[540px] w-[calc((100%-80px)/7)] h-[120px] px-1 z-30">
+<div class="bg-primary/20 border-l-4 border-primary rounded-r-md h-full p-2 cursor-pointer hover:bg-primary/30 transition-all">
+<h4 class="text-[11px] font-bold text-primary truncate">Strategic Deal Review</h4>
+<p class="text-[9px] text-on-surface truncate opacity-80">Global Logistics Corp</p>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[10px] text-on-surface-variant" data-icon="schedule">schedule</span>
+<span class="text-[9px] text-on-surface-variant">9:00 - 11:00 AM</span>
+</div>
+</div>
+</div>
+<!-- Event 2: Wednesday 2 PM - 3:30 PM -->
+<div class="absolute left-[calc(80px+((100%-80px)/7)*2)] top-[840px] w-[calc((100%-80px)/7)] h-[90px] px-1 z-30">
+<div class="bg-tertiary/20 border-l-4 border-tertiary rounded-r-md h-full p-2 cursor-pointer hover:bg-tertiary/30 transition-all">
+<h4 class="text-[11px] font-bold text-tertiary truncate">Client Onboarding</h4>
+<p class="text-[9px] text-on-surface truncate opacity-80">Anderson Holdings</p>
+<div class="flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-[10px] text-on-surface-variant" data-icon="schedule">schedule</span>
+<span class="text-[9px] text-on-surface-variant">2:00 - 3:30 PM</span>
+</div>
+</div>
+</div>
+<!-- Event 3: Friday 11 AM - 12 PM -->
+<div class="absolute left-[calc(80px+((100%-80px)/7)*4)] top-[660px] w-[calc((100%-80px)/7)] h-[60px] px-1 z-30">
+<div class="bg-primary-container/20 border-l-4 border-primary-container rounded-r-md h-full p-2 cursor-pointer hover:bg-primary-container/30 transition-all">
+<h4 class="text-[11px] font-bold text-primary-container truncate">Quarterly Forecast</h4>
+<p class="text-[9px] text-on-surface-variant truncate">Management Board</p>
+</div>
+</div>
+<!-- Time Indicator Line (Live) -->
+<div class="absolute left-0 right-0 h-[2px] bg-error z-40 pointer-events-none" id="time-line" style="top: 600px;">
+<div class="absolute -left-2 -top-1 w-2 h-2 rounded-full bg-error"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB Action (Contextual Suppression Logic: Only here for quick scheduling) -->
+<button class="fixed bottom-lg right-lg w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center group active:scale-90 transition-all duration-300 hover:rotate-90" id="fab-reminder">
+<span class="material-symbols-outlined text-2xl font-bold">add</span>
+</button>
+<!-- Micro-interaction: Event Details Modal (Hidden by default) -->
+<div class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300" id="event-modal">
+<div class="glass-card w-[450px] p-xl rounded-2xl border border-outline-variant shadow-2xl scale-90 transition-transform">
+<div class="flex justify-between items-start mb-lg">
+<div>
+<span class="text-xs bg-primary/20 text-primary px-sm py-1 rounded-full font-bold mb-sm inline-block">CLIENT MEETING</span>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">Strategic Deal Review</h3>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors" onclick="closeModal()">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="space-y-lg">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary" data-icon="schedule" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<div>
+<p class="font-bold text-sm">Today, October 18</p>
+<p class="text-xs text-on-surface-variant">9:00 AM – 11:00 AM (2 hours)</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary" data-icon="group" style="font-variation-settings: 'FILL' 1;">group</span>
+<div>
+<p class="font-bold text-sm">Global Logistics Corp</p>
+<p class="text-xs text-on-surface-variant">Assigned Deal: $1.2M Expansion Phase 2</p>
+</div>
+</div>
+<div class="p-md bg-surface-container-lowest rounded-xl border border-outline-variant/30">
+<p class="text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-xs">Description</p>
+<p class="text-sm text-on-surface opacity-80 leading-relaxed">Finalize terms for the Pacific corridor logistics hub. Reviewing compliance benchmarks and Q4 delivery schedules with the CEO and lead architects.</p>
+</div>
+<div class="flex gap-md pt-lg">
+<button class="flex-1 py-md bg-primary text-on-primary font-bold rounded-lg hover:brightness-110 active:scale-95 transition-all">Join Meeting</button>
+<button class="flex-1 py-md border border-outline-variant text-on-surface font-bold rounded-lg hover:bg-surface-container-high active:scale-95 transition-all">Reschedule</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+        // Modal Interaction
+        const modal = document.getElementById('event-modal');
+        const modalContent = modal.querySelector('.glass-card');
+        
+        function openModal() {
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modalContent.classList.remove('scale-90');
+        }
+
+        function closeModal() {
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modalContent.classList.add('scale-90');
+        }
+
+        // Simulating Click on Event
+        document.querySelectorAll('.calendar-grid > div > div').forEach(eventCard => {
+            eventCard.addEventListener('click', openModal);
+        });
+
+        // Set time line to current time (Simulated)
+        const updateTimeLine = () => {
+            const timeLine = document.getElementById('time-line');
+            const now = new Date();
+            const minutes = (now.getHours() * 60) + now.getMinutes();
+            const top = (minutes / (24 * 60)) * (24 * 60); // Roughly 1px per min in this view
+            // In our custom grid (24 rows * 60px)
+            timeLine.style.top = `${minutes}px`;
+        };
+        
+        updateTimeLine();
+        setInterval(updateTimeLine, 60000);
+
+        // Micro-animation for Sidebar Links
+        document.querySelectorAll('nav a').forEach(link => {
+            link.addEventListener('mouseenter', () => {
+                link.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
+            });
+            link.addEventListener('mouseleave', () => {
+                if (!link.classList.contains('bg-secondary-container')) {
+                    link.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 0";
+                }
+            });
+        });
+    </script>
+</body></html>
