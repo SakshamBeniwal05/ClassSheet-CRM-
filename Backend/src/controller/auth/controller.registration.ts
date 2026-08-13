@@ -23,6 +23,7 @@ const registerUser = async (name: string, email: string, role: Role, password: s
             throw new ApiError(400, "Email already exists")
         }
         const hashedPassword = await hashingPassword(password)
+        
         const newUser = await prisma.user.create({
             data: {
                 name,

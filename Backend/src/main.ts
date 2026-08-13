@@ -1,5 +1,5 @@
-import e, { type Application, type Request, type Response } from "express";
 import dotenv from "dotenv";
+import e, { type Application, type Request, type Response } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors"
 
@@ -34,6 +34,7 @@ import { organisationRouter } from "./routes/organisation/route.organisation.js"
 import { notesRouter } from "./routes/notes/route.notes.js";
 import { mediaRouter } from "./routes/media/route.media.js";
 import { reminderRouter } from "./routes/reminder/route.reminder.js";
+import { googleRouter } from "./routes/google/route.google.js";
 
 
 app.use("/api/auth", registerLoginRouter);
@@ -44,7 +45,7 @@ app.use("/api/organisation", organisationRouter);
 app.use("/api/notes", notesRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/reminders", reminderRouter);
-
+app.use('/api/google',googleRouter)
 app.get("/", (req: Request, res: Response) => {
     res.json("server is running");
 });

@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { prisma } from "../../main.js";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
-import imagekit from "../../services/service.storageBucket.js";
+import imagekit from "../../services/imagekit/service.storageBucket.js";
 
 // Generates signature and authentication parameters for direct client upload
 const getUploadAuthParams = async (req: Request, res: Response) => {
