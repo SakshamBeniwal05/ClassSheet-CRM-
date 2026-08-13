@@ -142,6 +142,96 @@ export const userStore = create((set, get: any) => ({
         }
         finally { set({ isRegistering: false }) }
     },
+    sendRegistrationMail: async (email: string) => {
+        try {
+            if (!email?.trim()) {
+                toast.error("Email is required");
+                return false;
+            }
+            await apiCaller.post('/auth/registrationMail', { email });
+            toast.success("OTP sent to your email successfully");
+            return true;
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || error.message || "Failed to send OTP";
+            toast.error(errMsg);
+            return false;
+        }
+    },
+    verifyOTPAndRegister: async (inputOtp: string) => {
+        set({ isRegistering: true });
+        try {
+            const registrationDetailsStr = localStorage.getItem("registration_details");
+            if (!registrationDetailsStr) {
+                toast.error("No registration details found. Please start over.");
+                set({ currentPage: 'dashboard' });
+                return false;
+            }
+            const details = JSON.parse(registrationDetailsStr);
+            const { name, email, password, registrationPath, organisationName, inviteToken } = details;
+
+            if (registrationPath === "newOrg") {
+                const res = await apiCaller.post('/auth/registerWithNewOrganisation', {
+                    name,
+                    email,
+                    password,
+                    organisationName,
+                    inputOtp
+                });
+                set({ userData: res.data, currentPage: 'dashboard' });
+                localStorage.removeItem("registration_details");
+                toast.success("Organisation registered and user logged in successfully");
+                return true;
+            } else {
+                const res = await apiCaller.post('/auth/newUserRegistration', {
+                    name,
+                    email,
+                    password,
+                    inputOtp
+                });
+                set({ userData: res.data, currentPage: 'dashboard' });
+                
+                // If there's an invite token, join the org
+                if (inviteToken) {
+                    try {
+                        const joinRes = await apiCaller.post('/auth/joinOrganisation', { inviteToken });
+                        
+                        // Update state with joined organisation info
+                        const currentUserData = res.data;
+                        if (currentUserData && currentUserData.data) {
+                            const updatedUser = joinRes.data.data.updatedUser;
+                            set({
+                                userData: {
+                                    ...currentUserData,
+                                    data: {
+                                        ...currentUserData.data,
+                                        user: {
+                                            ...currentUserData.data.user,
+                                            ...updatedUser
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        toast.success("Joined organisation successfully");
+                    } catch (joinError: any) {
+                        const errMsg = joinError.response?.data?.error || joinError.message || "Failed to join organisation";
+                        toast.error(errMsg);
+                    }
+                } else {
+                    toast.success("Registered successfully");
+                }
+                
+                localStorage.removeItem("registration_details");
+                return true;
+            }
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || error.message || "Failed to verify OTP & Register";
+            toast.error(errMsg);
+            return false;
+        } finally {
+            set({ isRegistering: false });
+        }
+    },
     logout: async () => {
         set({ isLoggingOut: true })
         try {

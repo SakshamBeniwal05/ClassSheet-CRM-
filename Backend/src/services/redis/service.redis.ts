@@ -16,6 +16,6 @@ await redisClient.connect();
 export default redisClient;
 
 
-await redisClient.set('foo', 'bar');
-const result = await redisClient.get('foo');
-console.log(result)
+// await redisClient.set('foo', 'bar');
+// const result = await redisClient.get('foo');
+// console.log(result)

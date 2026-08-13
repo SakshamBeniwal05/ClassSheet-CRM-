@@ -27,14 +27,13 @@ const prisma = new PrismaClient({ adapter });
 
 // Routers
 
-import { registerLoginRouter } from "./routes/login and register/route.registerLogin.js";
+import { registerLoginRouter } from "./routes/login_and_register/route.registerLogin.js";
 import { clientRouter } from "./routes/client/route.client.js";
 import { dealRouter } from "./routes/deal/route.deal.js";
 import { organisationRouter } from "./routes/organisation/route.organisation.js";
 import { notesRouter } from "./routes/notes/route.notes.js";
 import { mediaRouter } from "./routes/media/route.media.js";
 import { reminderRouter } from "./routes/reminder/route.reminder.js";
-import { googleRouter } from "./routes/google/route.google.js";
 
 
 app.use("/api/auth", registerLoginRouter);
@@ -45,7 +44,6 @@ app.use("/api/organisation", organisationRouter);
 app.use("/api/notes", notesRouter);
 app.use("/api/media", mediaRouter);
 app.use("/api/reminders", reminderRouter);
-app.use('/api/google',googleRouter)
 app.get("/", (req: Request, res: Response) => {
     res.json("server is running");
 });

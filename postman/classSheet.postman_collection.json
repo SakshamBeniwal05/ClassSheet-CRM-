@@ -11,6 +11,26 @@
 			"description": "Authentication and user onboarding routes",
 			"item": [
 				{
+					"name": "Send Registration OTP Mail",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/registrationMail",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "registrationMail"]
+						},
+						"description": "Send a verification OTP code to the requested email."
+					},
+					"response": []
+				},
+				{
 					"name": "Register with New Organisation",
 					"request": {
 						"method": "POST",
@@ -19,7 +39,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"organisationName\": \"Acme Industries\"\n}"
+							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"organisationName\": \"Acme Industries\",\n  \"inputOtp\": \"123456\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/registerWithNewOrganisation",
@@ -39,7 +59,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"password\": \"SecurePassword456!\"\n}"
+							"raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"password\": \"SecurePassword456!\",\n  \"inputOtp\": \"123456\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/newUserRegistration",

@@ -5,6 +5,9 @@ import type { Role } from "../../generated/prisma/enums.js";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
 import { prisma } from "../../main.js";
+import otpGenerator from "../../utils/utils.api.otp.js";
+import redisClient from "../../services/redis/service.redis.js";
+import sendMail from "./controller.google.js";
 
 
 // helper function
@@ -23,7 +26,7 @@ const registerUser = async (name: string, email: string, role: Role, password: s
             throw new ApiError(400, "Email already exists")
         }
         const hashedPassword = await hashingPassword(password)
-        
+
         const newUser = await prisma.user.create({
             data: {
                 name,
@@ -86,6 +89,25 @@ const registerOrganisation = async (organisationName: string, ownerId: string) =
     }
 }
 
+const generateMailOTP = async (req: Request, res: Response) => {
+    const { email } = req.body
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+        throw new ApiError(400, "User with this email already exists");
+    }
+    const otp = otpGenerator()
+
+    await redisClient.set(`otp:${email}`, otp, { 'EX': 300 })
+
+    await sendMail(email, "otp", `otp for the website registration ${otp}`)
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "OTP sent successfully to your email")
+    );
+}
 // helper function
 
 
@@ -96,26 +118,35 @@ const registerOrganisation = async (organisationName: string, ownerId: string) =
 const registerWithNewOrganisation = async (req: Request, res: Response) => {
 
     try {
-        const { name, email, password, organisationName } = req.body;
-        const createdUser = await registerUser(name, email, "Owner", password)
-        const createdOrg = await registerOrganisation(organisationName, createdUser?.id ?? "")
-        const updatedUser = await prisma.user.update({
-            where: { id: createdUser?.id || "" },
-            data: { organisationId: createdOrg?.id || "" },
-            select: { id: true, name: true, email: true, role: true, organisationId: true }
-        });
-        const { refreshToken, accessToken } = await newLoginTokens(updatedUser)
+        const { name, email, password, organisationName, inputOtp } = req.body;
+        const storedOtp = await redisClient.get(`otp:${email}`);
+        if (!storedOtp) {
+            throw new ApiError(400, "OTP has expired or was not requested");
+        }
+        if (storedOtp === inputOtp.toString()) {
+            const createdUser = await registerUser(name, email, "Owner", password)
+            const createdOrg = await registerOrganisation(organisationName, createdUser?.id ?? "")
+            const updatedUser = await prisma.user.update({
+                where: { id: createdUser?.id || "" },
+                data: { organisationId: createdOrg?.id || "" },
+                select: { id: true, name: true, email: true, role: true, organisationId: true }
+            });
+            const { refreshToken, accessToken } = await newLoginTokens(updatedUser)
 
-        return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
-            new ApiResponse(201, {
-                accessToken, user: {
-                    id: updatedUser?.id,
-                    name: updatedUser?.name,
-                    email: updatedUser?.email,
-                    role: updatedUser?.role,
-                    organisationId: updatedUser?.organisationId,
-                }
-            }, "New User registered and logged in successfully"));
+            return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
+                new ApiResponse(201, {
+                    accessToken, user: {
+                        id: updatedUser?.id,
+                        name: updatedUser?.name,
+                        email: updatedUser?.email,
+                        role: updatedUser?.role,
+                        organisationId: updatedUser?.organisationId,
+                    }
+                }, "New User registered and logged in successfully"));
+
+        } else {
+            throw new ApiError(400, "otp is wrong")
+        }
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(400).json({ error: error.message });
@@ -126,21 +157,28 @@ const registerWithNewOrganisation = async (req: Request, res: Response) => {
 
 const newUserRegistration = async (req: Request, res: Response) => {
     try {
-        const { name, email, password, } = req.body;
-        const createdUser = await registerUser(name, email, "Employee", password)
+        const { name, email, password, inputOtp } = req.body;
+        const storedOtp = await redisClient.get(`otp:${email}`);
+        if (!storedOtp) {
+            throw new ApiError(400, "OTP has expired or was not requested");
+        } if (storedOtp === inputOtp.toString()) {
 
-        const { refreshToken, accessToken } = await newLoginTokens(createdUser)
+            const createdUser = await registerUser(name, email, "Employee", password)
+            const { refreshToken, accessToken } = await newLoginTokens(createdUser)
 
-        return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
-            new ApiResponse(201, {
-                accessToken, user: {
-                    id: createdUser?.id,
-                    name: createdUser?.name,
-                    email: createdUser?.email,
-                    role: createdUser?.role,
-                    organisationId: createdUser?.organisationId,
-                }
-            }, "New User registered and logged in successfully"));
+            return res.status(201).cookie("refreshToken", refreshToken, refreshCookieOptions).json(
+                new ApiResponse(201, {
+                    accessToken, user: {
+                        id: createdUser?.id,
+                        name: createdUser?.name,
+                        email: createdUser?.email,
+                        role: createdUser?.role,
+                        organisationId: createdUser?.organisationId,
+                    }
+                }, "New User registered and logged in successfully"));
+        } else {
+            throw new ApiError(400, "otp is wrong")
+        }
     } catch (error) {
         if (error instanceof ApiError) {
             return res.status(400).json({ error: error.message });
@@ -186,7 +224,7 @@ const joinOrganisation = async (req: Request, res: Response) => {
 
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
-        
+
         if (user?.organisationId) {
             throw new ApiError(400, "You already belong to an organisation");
         }
@@ -260,4 +298,4 @@ const userOwnerWithoutOrg = async (req: Request, res: Response) => {
 
 // route funciton
 
-export { registerWithNewOrganisation, newUserRegistration, joinOrganisation, userOwnerWithoutOrg } 
+export { registerWithNewOrganisation, newUserRegistration, joinOrganisation, userOwnerWithoutOrg, generateMailOTP } 

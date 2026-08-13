@@ -4,6 +4,7 @@ import {
     newUserRegistration,
     joinOrganisation,
     userOwnerWithoutOrg,
+    generateMailOTP
 } from "../../controller/auth/controller.registration.js";
 import {
     loginUser,
@@ -20,7 +21,7 @@ registerLoginRouter.route("/registerWithNewOrganisation").post(registerWithNewOr
 registerLoginRouter.route("/newUserRegistration").post(newUserRegistration);
 registerLoginRouter.route('/login').post(loginUser)
 registerLoginRouter.route('/refresh').get(refreshSession)
-
+registerLoginRouter.route('/registrationMail').post(generateMailOTP)
 // Authenticated auth routes
 registerLoginRouter.route("/userOwnnerWithoutOrg").post(verification, userOwnerWithoutOrg);
 registerLoginRouter.route("/joinOrganisation").post(verification, joinOrganisation);

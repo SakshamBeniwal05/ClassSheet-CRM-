@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer";
 import ApiError from "../../utils/utils.api.error.js";
-import type { Request, Response } from "express";
 
 const transporter = nodemailer.createTransport(
     {
@@ -14,18 +13,18 @@ const transporter = nodemailer.createTransport(
     }
 )
 
-const sendMail = async (req: Request, res: Response) => {
+const sendMail = async (reciverMail:string, subject: string, text:string) => {
     try {
         const mail = await transporter.sendMail({
             from: `"Dhyani Vaidh" <process.env.GOOGLE_USER>`,
-            to: "priyanshu22600@gmail.com",
-            subject: "coke studio",
-            text: "hello, saksham this side i m currently developing email otp sandsign servicw so if u rewcive ping me back"
+            to: reciverMail,
+            subject,
+            text,
         })
         console.log(mail);
 
-        if (!mail.rejected || mail.rejected.length === 0) {
-            return res.status(200).json({ message: "OTP SENT" });
+        if (mail.rejected && mail.rejected.includes(reciverMail)) {
+            throw new ApiError(400, "Email address rejected");
         }
 
     } catch (error) {

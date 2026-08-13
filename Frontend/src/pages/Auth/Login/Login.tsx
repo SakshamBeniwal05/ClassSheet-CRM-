@@ -47,9 +47,8 @@ const Login = () => {
         isRegistering,
         isJoining,
         login,
-        registerUserWithNewOrg,
-        regitserwithExistingOrg,
-        joinOrg
+        sendRegistrationMail,
+        setCurrentPage
     } = (userStore as any)();
 
     const { register: registerSignIn, handleSubmit: handleSignInSubmit } = useForm<any>();
@@ -180,19 +179,18 @@ const Login = () => {
     };
 
     const onSubmitRegister = async (data: any) => {
-        if (subTab.value === "newOrg") {
-            await registerUserWithNewOrg({
-                name: data.name,
-                email: data.email,
-                password: data.password,
-                organisationName: data.organisationName
-            });
-        } else {
-            const { name, email, password, inviteToken } = data;
-            const registered = await regitserwithExistingOrg({ name, email, password });
-            if (registered && inviteToken) {
-                await joinOrg({ inviteToken });
-            }
+        const details = {
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            registrationPath: subTab.value,
+            organisationName: subTab.value === "newOrg" ? data.organisationName : undefined,
+            inviteToken: subTab.value === "existingOrg" ? data.inviteToken : undefined
+        };
+        localStorage.setItem("registration_details", JSON.stringify(details));
+        const success = await sendRegistrationMail(data.email);
+        if (success) {
+            setCurrentPage('otp');
         }
     };
 

@@ -4,6 +4,7 @@ import { useClientStore } from "./store/clientStore"
 import { useDealStore } from "./store/dealStore"
 import { useReminderStore } from "./store/reminderStore"
 import Login from "./pages/Auth/Login/Login"
+import OTP from "./pages/OTP/otp"
 import { Dashboard } from "./pages/Dashboard/Dashboard"
 import { Clients } from "./pages/Clients/Clients"
 import { Deals } from "./pages/Deals/Deals"
@@ -60,7 +61,7 @@ function App() {
 
     return (
         <div className="bg-[#191302] h-screen overflow-hidden relative">
-            {userData ? renderPage() : <Login />}
+            {userData ? renderPage() : (currentPage === 'otp' ? <OTP /> : <Login />)}
 
             {/* Global Loader Overlay */}
             {loadingMessage && (
