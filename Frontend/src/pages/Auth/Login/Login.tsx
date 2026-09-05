@@ -344,6 +344,7 @@ const Login = () => {
                                         </label>
                                         <div className="w-full flex justify-center">
                                             <SubSelectToggle
+                                                id="auth-sub-tabs"
                                                 tabs={SUB_TABS}
                                                 tab={subTab}
                                                 setTab={setSubTab}

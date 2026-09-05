@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, MotionConfig } from "motion/react";
+import { useId } from "react";
+import { motion, MotionConfig, LayoutGroup } from "motion/react";
 import type { Transition } from "motion/react"
 
 export interface MenuItem {
@@ -14,6 +15,7 @@ interface Props {
   setTab: (tab: MenuItem) => void;
   transition?: Transition;
   disabled?: boolean;
+  id?: string;
 }
 
 const SubSelectToggle = ({
@@ -22,16 +24,25 @@ const SubSelectToggle = ({
   setTab,
   transition = { type: "spring", duration: 0.4, bounce: 0.15 },
   disabled = false,
+  id,
 }: Props) => {
+  const autoId = useId();
+  const toggleId = id || autoId;
+
   return (
-    <div>
+    <LayoutGroup id={toggleId}>
       <MotionConfig transition={transition}>
         <div className={`flex h-12 rounded-full bg-tSecondary p-1 text-sm border border-colorNeutral/25 shadow-2xl relative ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
           {tabs.map((t) => {
             const isActive = t.value === tab.value;
             return (
               <motion.button
-                onClick={() => !disabled && setTab(t)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!disabled) setTab(t);
+                }}
                 disabled={disabled}
                 key={t.value}
                 initial={{ color: isActive ? "#FFFFFF" : "var(--color-colorNeutral)" }}
@@ -41,7 +52,7 @@ const SubSelectToggle = ({
                 <span className="relative z-10 text-xs sm:text-sm">{t.label}</span>
                 {isActive && (
                   <motion.div
-                    layoutId="active-pill"
+                    layoutId={`active-pill-${toggleId}`}
                     className="absolute inset-0 rounded-full bg-colorPrimary shadow-lg"
                     style={{ originY: "0px" }}
                   />
@@ -51,7 +62,7 @@ const SubSelectToggle = ({
           })}
         </div>
       </MotionConfig>
-    </div>
+    </LayoutGroup>
   );
 };
 

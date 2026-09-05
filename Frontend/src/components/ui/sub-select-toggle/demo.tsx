@@ -12,9 +12,10 @@ interface SubSelectToggleDemoProps {
   tab: MenuItem
   setTab: (tab: MenuItem) => void
   disabled?: boolean
+  id?: string
 }
 
-const SubSelectToggleDemo = ({ tab, setTab, disabled }: SubSelectToggleDemoProps) => {
+const SubSelectToggleDemo = ({ tab, setTab, disabled, id = "auth-main-tabs" }: SubSelectToggleDemoProps) => {
   return (
     <div className="flex justify-center py-4 w-full">
       <SubSelectToggle
@@ -22,6 +23,7 @@ const SubSelectToggleDemo = ({ tab, setTab, disabled }: SubSelectToggleDemoProps
         tab={tab}
         setTab={setTab}
         disabled={disabled}
+        id={id}
       />
     </div>
   );
