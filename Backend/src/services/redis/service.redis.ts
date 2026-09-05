@@ -1,11 +1,16 @@
-import { createClient } from 'redis';
+import { createClient, type RedisClientOptions } from 'redis';
+
+const username:string = process.env.REDIS_USERNAME
+const password:string = process.env.REDIS_PASSWORD
+const host:string = process.env.REDIS_HOST
+const port:number = process.env.REDIS_PORT
 
 const redisClient = createClient({
-    username: 'default',
-    password: '3kmI2fGMCOVBydil0pxO6J9PV8mvODmb',
+    username,
+    password,
     socket: {
-        host: 'independent-ruddy-cats-30976.db.redis.io',
-        port: 15040
+        host,
+        port
     }
 });
 
