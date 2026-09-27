@@ -111,6 +111,10 @@ const removeMember = async (req: Request, res: Response) => {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        if (!memberId || typeof memberId !== "string") {
+            throw new ApiError(400, "Valid Member ID is required");
+        }
+
         if (userRole !== "Owner" && userRole !== "Admin") {
             throw new ApiError(403, "Only Owner or Admin can remove members");
         }
@@ -156,11 +160,15 @@ const changeMemberRole = async (req: Request, res: Response) => {
     try {
         const { memberId, updatedRole } = req.params;
         const organisationId = req.user?.organisationId;
-        const role = req.user.role
+        const role = req.user?.role;
         const currentUserId = req.user?.userId;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (!memberId || typeof memberId !== "string") {
+            throw new ApiError(400, "Valid Member ID is required");
         }
 
         if (updatedRole !== "Admin" && updatedRole !== "Employee") {

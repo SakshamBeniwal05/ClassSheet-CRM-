@@ -80,7 +80,7 @@ const getParticularClient = async (req: Request, res: Response) => {
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
-        if (!ALLOWED_CLIENT_SEARCH_FIELDS.includes(criteria as ClientSearchField)) {
+        if (!criteria || typeof criteria !== "string" || !value || typeof value !== "string" || !ALLOWED_CLIENT_SEARCH_FIELDS.includes(criteria as ClientSearchField)) {
             throw new ApiError(400, "Invalid search criteria");
         }
 
@@ -123,6 +123,9 @@ const updateClient = async (req: Request, res: Response) => {
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Client ID is required");
+        }
         const existingClient = await prisma.client.findFirst({
 
             where: { id, dealHandlingOrganisationId: organisationId },
@@ -137,7 +140,7 @@ const updateClient = async (req: Request, res: Response) => {
         }
 
         const updatedClient = await prisma.client.update({
-            where: { id, },
+            where: { id },
             data: {
                 ...(name && { name }),
                 ...(email && { email }),
@@ -163,6 +166,10 @@ const deleteClient = async (req: Request, res: Response) => {
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Client ID is required");
         }
 
         const isOwnerOrAdmin = (userRole === "Owner" || userRole === "Admin");

@@ -52,17 +52,22 @@ const createNote = async (req: Request, res: Response) => {
 const getNotesByDeal = async (req: Request, res: Response) => {
     try {
         const { dealId } = req.params;
-        const { role } = req.user?.role;
+        const role = req.user?.role;
+        const userId = req.user?.userId;
         const organisationId = req.user?.organisationId;
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
-        const isAdminorOwner = role === "Admin" || role === "Owner"
+        if (!dealId || typeof dealId !== "string") {
+            throw new ApiError(400, "Valid Deal ID is required");
+        }
+
+        const isAdminorOwner = role === "Admin" || role === "Owner";
 
         const deal = await prisma.deal.findFirst({
-            where: { id: dealId, ...(isAdminorOwner ? {} : { authorId: deal?.authorId }), dealOrganisation: organisationId },
+            where: { id: dealId, ...(isAdminorOwner ? {} : { authorId: userId }), dealOrganisation: organisationId },
         });
 
         if (!deal) {
@@ -92,17 +97,21 @@ const updateNote = async (req: Request, res: Response) => {
         const { id } = req.params;
         const { title, body, status } = req.body;
         const organisationId = req.user?.organisationId;
-        const role = req.user.role
-        const userId = req.user.id
+        const role = req.user?.role;
+        const userId = req.user?.userId;
 
-        const isAdminorOwner = role === "Admin" || role === "Owner"
+        const isAdminorOwner = role === "Admin" || role === "Owner";
         
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Note ID is required");
+        }
+
         const existingNote = await prisma.note.findFirst({
-            where: { id, ...(isAdminorOwner ? {} : {authorId:userId}) ,deal: { dealOrganisation: organisationId } },
+            where: { id, ...(isAdminorOwner ? {} : { authorId: userId }), deal: { dealOrganisation: organisationId } },
         });
 
         if (!existingNote) {
@@ -132,17 +141,21 @@ const deleteNote = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const organisationId = req.user?.organisationId;
-        const role = req.user.role
-        const userId = req.user.id
+        const role = req.user?.role;
+        const userId = req.user?.userId;
 
-        const isAdminorOwner = role === "Admin" || role === "Owner"
+        const isAdminorOwner = role === "Admin" || role === "Owner";
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Note ID is required");
+        }
+
         const existingNote = await prisma.note.findFirst({
-            where: { id, ...(isAdminorOwner? {} : {authorId:userId}) ,deal: { dealOrganisation: organisationId } },
+            where: { id, ...(isAdminorOwner ? {} : { authorId: userId }), deal: { dealOrganisation: organisationId } },
         });
 
         if (!existingNote) {

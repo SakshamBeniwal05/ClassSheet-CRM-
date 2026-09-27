@@ -12,7 +12,8 @@ import {
     Plus,
     Sidebar,
     Menu,
-    X
+    X,
+    FileChartColumn
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ClientDetailsModal, DealDetailsModal } from '../modals/DetailsModals'
@@ -31,8 +32,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, acti
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'clients', label: 'Clients', icon: Users },
         { id: 'deals', label: 'Deals', icon: Handshake },
+        { id: 'dealManagement', label: 'Management', icon: FileChartColumn },
         { id: 'reminders', label: 'Reminders', icon: Bell },
         { id: 'employees', label: 'Employees', icon: Contact },
+
     ]
 
     return (
@@ -153,8 +156,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, acti
                 </header>
 
                 {/* Sub-page Content */}
-                <main className="flex-1 overflow-y-auto bg-colorSecondary p-4 lg:p-8">
-                    <div className="max-w-[1400px] mx-auto w-full">
+                <main className={`flex-1 min-h-0 ${activeTab === 'dealManagement' ? 'overflow-hidden flex flex-col p-3 lg:p-6' : 'overflow-y-auto p-4 lg:p-8'} bg-colorSecondary`}>
+                    <div className={`${activeTab === 'dealManagement' ? 'flex-1 h-full min-h-0 flex flex-col w-full' : 'max-w-[1400px] mx-auto w-full'}`}>
                         {children}
                     </div>
                 </main>

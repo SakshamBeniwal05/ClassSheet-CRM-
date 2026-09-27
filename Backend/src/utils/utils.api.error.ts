@@ -2,6 +2,14 @@ export default class ApiError extends Error {
     statuscode: number
     error: unknown[]
 
+    get statusCode(): number {
+        return this.statuscode;
+    }
+
+    set statusCode(code: number) {
+        this.statuscode = code;
+    }
+
     constructor(
         statuscode: number,
         message = "something went wrong",

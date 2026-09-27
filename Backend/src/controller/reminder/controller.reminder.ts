@@ -81,6 +81,10 @@ const updateReminderStatus = async (req: Request, res: Response) => {
             throw new ApiError(401, "Authentication required");
         }
 
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Reminder ID is required");
+        }
+
         if (!status) {
             throw new ApiError(400, "Status is required");
         }
@@ -114,6 +118,10 @@ const deleteReminder = async (req: Request, res: Response) => {
 
         if (!userId) {
             throw new ApiError(401, "Authentication required");
+        }
+
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Reminder ID is required");
         }
 
         const existingReminder = await prisma.reminder.findFirst({

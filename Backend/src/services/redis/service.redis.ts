@@ -1,9 +1,9 @@
 import { createClient, type RedisClientOptions } from 'redis';
 
-const username:string = process.env.REDIS_USERNAME
-const password:string = process.env.REDIS_PASSWORD
-const host:string = process.env.REDIS_HOST
-const port:number = process.env.REDIS_PORT
+const username: string = process.env.REDIS_USERNAME || "default";
+const password: string = process.env.REDIS_PASSWORD || "";
+const host: string = process.env.REDIS_HOST || "localhost";
+const port: number = Number(process.env.REDIS_PORT) || 6379;
 
 const redisClient = createClient({
     username,

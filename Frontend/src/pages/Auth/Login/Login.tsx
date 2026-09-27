@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { userStore } from "../../../store/userStore"
-import { Database, Eye, EyeOff } from "lucide-react"
+import { Database, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react"
 import SubSelectToggleDemo from "../../../components/ui/sub-select-toggle/demo"
 import SubSelectToggle from "../../../components/ui/sub-select-toggle"
 import type { MenuItem } from "../../../components/ui/sub-select-toggle"
@@ -41,18 +41,22 @@ const Login = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [showSignInPassword, setShowSignInPassword] = useState(false);
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+    const [isForgotPassword, setIsForgotPassword] = useState(false);
 
     const {
         isLoggingIn,
         isRegistering,
         isJoining,
+        isSendingForgotMail,
         login,
         sendRegistrationMail,
+        sendForgotPasswordMail,
         setCurrentPage
     } = (userStore as any)();
 
     const { register: registerSignIn, handleSubmit: handleSignInSubmit } = useForm<any>();
     const { register: registerAuth, handleSubmit: handleRegisterSubmit } = useForm<any>();
+    const { register: registerForgot, handleSubmit: handleForgotSubmit } = useForm<any>();
 
     // Dynamic 3D Geometric Animation Background using ThreeJS CDN
     useEffect(() => {
@@ -187,8 +191,14 @@ const Login = () => {
             organisationName: subTab.value === "newOrg" ? data.organisationName : undefined,
             inviteToken: subTab.value === "existingOrg" ? data.inviteToken : undefined
         };
-        localStorage.setItem("registration_details", JSON.stringify(details));
-        const success = await sendRegistrationMail(data.email);
+        const success = await sendRegistrationMail(details);
+        if (success) {
+            setCurrentPage('otp');
+        }
+    };
+
+    const onSubmitForgot = async (data: any) => {
+        const success = await sendForgotPasswordMail(data.email);
         if (success) {
             setCurrentPage('otp');
         }
@@ -207,13 +217,72 @@ const Login = () => {
                         <h1 className="font-sans font-semibold text-2xl tracking-tighter text-tInverted">Core CRM</h1>
                     </div>
 
-                    {/* Toggle UI using original SubSelectToggleDemo switch */}
-                    <div className="w-full">
-                        <SubSelectToggleDemo tab={tab} setTab={setTab} disabled={isLoggingIn || isRegistering || isJoining} />
-                    </div>
+                    {/* Form Switching: Forgot Password vs Login/Register Tabs */}
+                    {isForgotPassword ? (
+                        <motion.div
+                            key="forgot-password-view"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 15 }}
+                            transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
+                            className="w-full space-y-6"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setIsForgotPassword(false)}
+                                className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-tPrimary hover:text-tInverted transition-colors bg-transparent border-none cursor-pointer p-0"
+                            >
+                                <ArrowLeft className="w-4 h-4 text-colorPrimary" />
+                                Back to Sign In
+                            </button>
 
-                    {/* Sign In Form */}
-                    <AnimatePresence mode="wait">
+                            <div className="space-y-1">
+                                <h2 className="text-xl font-bold text-tInverted tracking-tight">Forgot Password</h2>
+                                <p className="text-xs text-on-surface-variant leading-relaxed">
+                                    Enter your registered email address and we'll send you a 6-digit verification code to reset your password.
+                                </p>
+                            </div>
+
+                            <form className="space-y-4" onSubmit={handleForgotSubmit(onSubmitForgot)}>
+                                <div className="space-y-1">
+                                    <label className="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">
+                                        Email Address
+                                    </label>
+                                    <input
+                                        className="w-full p-3 rounded-lg input-field text-sm text-tInverted disabled:opacity-50"
+                                        placeholder="name@company.com"
+                                        type="email"
+                                        required
+                                        disabled={isSendingForgotMail}
+                                        {...registerForgot("email")}
+                                    />
+                                </div>
+
+                                <button
+                                    className="w-full py-3 rounded-lg primary-btn font-semibold text-base text-white mt-6 shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                                    type="submit"
+                                    disabled={isSendingForgotMail}
+                                >
+                                    {isSendingForgotMail ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Sending Code...
+                                        </>
+                                    ) : (
+                                        "Send Verification Code"
+                                    )}
+                                </button>
+                            </form>
+                        </motion.div>
+                    ) : (
+                        <>
+                            {/* Toggle UI using original SubSelectToggleDemo switch */}
+                            <div className="w-full">
+                                <SubSelectToggleDemo tab={tab} setTab={setTab} disabled={isLoggingIn || isRegistering || isJoining} />
+                            </div>
+
+                            {/* Sign In Form */}
+                            <AnimatePresence mode="wait">
                         {tab.value === "login" && (
                             <motion.div
                                 key="login-form"
@@ -242,9 +311,13 @@ const Login = () => {
                                             <label className="text-xs uppercase tracking-widest text-on-surface-variant font-semibold">
                                                 Password
                                             </label>
-                                            <a className="text-xs text-colorPrimary hover:underline" href="#">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsForgotPassword(true)}
+                                                className="text-xs text-colorPrimary hover:underline bg-transparent border-none p-0 cursor-pointer"
+                                            >
                                                 Forgot?
-                                            </a>
+                                            </button>
                                         </div>
                                         <div className="relative">
                                             <input
@@ -415,6 +488,8 @@ const Login = () => {
                             </motion.div>
                         )}
                     </AnimatePresence>
+                    </>
+                )}
 
                     {/* Footer Meta */}
                     <div className="pt-6 text-center">

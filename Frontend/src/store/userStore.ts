@@ -9,6 +9,8 @@ export const userStore = create((set, get: any) => ({
     isCheckingAuth: false,
     isRegistering: false,
     isJoining: false,
+    isSendingForgotMail: false,
+    isResettingPassword: false,
     currentPage: 'dashboard',
     setCurrentPage: (page: string) => set({ currentPage: page }),
     isSidebarMinimized: false,
@@ -142,94 +144,131 @@ export const userStore = create((set, get: any) => ({
         }
         finally { set({ isRegistering: false }) }
     },
-    sendRegistrationMail: async (email: string) => {
+    sendRegistrationMail: async (data: any) => {
+        set({ isRegistering: true });
         try {
-            if (!email?.trim()) {
+            const payload = typeof data === "string" ? { email: data } : data;
+            const email = payload.email?.trim();
+            if (!email) {
                 toast.error("Email is required");
                 return false;
             }
-            await apiCaller.post('/auth/registrationMail', { email });
-            toast.success("OTP sent to your email successfully");
+
+            await apiCaller.post('/auth/registerVerification', payload);
+
+            // Store non-sensitive identifiers for OTP verification stage (NO passwords in storage!)
+            sessionStorage.setItem("pending_email", email);
+            if (payload.registrationPath) {
+                sessionStorage.setItem("registration_path", payload.registrationPath);
+            }
+            localStorage.setItem("pending_email", email);
+            if (payload.registrationPath) {
+                localStorage.setItem("registration_path", payload.registrationPath);
+            }
+            localStorage.removeItem("registration_details");
+
+            toast.success("Verification successful! OTP sent to your email.");
             return true;
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to send OTP";
             toast.error(errMsg);
             return false;
+        } finally {
+            set({ isRegistering: false });
         }
     },
     verifyOTPAndRegister: async (inputOtp: string) => {
         set({ isRegistering: true });
         try {
-            const registrationDetailsStr = localStorage.getItem("registration_details");
-            if (!registrationDetailsStr) {
-                toast.error("No registration details found. Please start over.");
+            const email = sessionStorage.getItem("pending_email") || localStorage.getItem("pending_email");
+            const registrationPath = sessionStorage.getItem("registration_path") || localStorage.getItem("registration_path") || "newOrg";
+
+            if (!email) {
+                toast.error("No active registration session found. Please register again.");
                 set({ currentPage: 'dashboard' });
                 return false;
             }
-            const details = JSON.parse(registrationDetailsStr);
-            const { name, email, password, registrationPath, organisationName, inviteToken } = details;
 
-            if (registrationPath === "newOrg") {
-                const res = await apiCaller.post('/auth/registerWithNewOrganisation', {
-                    name,
-                    email,
-                    password,
-                    organisationName,
-                    inputOtp
-                });
-                set({ userData: res.data, currentPage: 'dashboard' });
-                localStorage.removeItem("registration_details");
-                toast.success("Organisation registered and user logged in successfully");
-                return true;
-            } else {
-                const res = await apiCaller.post('/auth/newUserRegistration', {
-                    name,
-                    email,
-                    password,
-                    inputOtp
-                });
-                set({ userData: res.data, currentPage: 'dashboard' });
-                
-                // If there's an invite token, join the org
-                if (inviteToken) {
-                    try {
-                        const joinRes = await apiCaller.post('/auth/joinOrganisation', { inviteToken });
-                        
-                        // Update state with joined organisation info
-                        const currentUserData = res.data;
-                        if (currentUserData && currentUserData.data) {
-                            const updatedUser = joinRes.data.data.updatedUser;
-                            set({
-                                userData: {
-                                    ...currentUserData,
-                                    data: {
-                                        ...currentUserData.data,
-                                        user: {
-                                            ...currentUserData.data.user,
-                                            ...updatedUser
-                                        }
-                                    }
-                                }
-                            });
-                        }
-                        toast.success("Joined organisation successfully");
-                    } catch (joinError: any) {
-                        const errMsg = joinError.response?.data?.error || joinError.message || "Failed to join organisation";
-                        toast.error(errMsg);
-                    }
-                } else {
-                    toast.success("Registered successfully");
-                }
-                
-                localStorage.removeItem("registration_details");
-                return true;
-            }
+            const endpoint = registrationPath === "newOrg"
+                ? '/auth/registerWithNewOrganisation'
+                : '/auth/newUserRegistration';
+
+            const res = await apiCaller.post(endpoint, {
+                email,
+                inputOtp
+            });
+
+            set({ userData: res.data, currentPage: 'dashboard' });
+
+            // Cleanup staging storage
+            sessionStorage.removeItem("pending_email");
+            sessionStorage.removeItem("registration_path");
+            localStorage.removeItem("pending_email");
+            localStorage.removeItem("registration_path");
+            localStorage.removeItem("registration_details");
+
+            toast.success("Registered and logged in successfully");
+            return true;
         } catch (error: any) {
             const errMsg = error.response?.data?.error || error.message || "Failed to verify OTP & Register";
             toast.error(errMsg);
             return false;
         } finally {
             set({ isRegistering: false });
+        }
+    },
+    sendForgotPasswordMail: async (email: string) => {
+        set({ isSendingForgotMail: true });
+        try {
+            const trimmedEmail = email?.trim();
+            if (!trimmedEmail) {
+                toast.error("Email is required");
+                return false;
+            }
+
+            await apiCaller.post('/auth/forgotPassword', { email: trimmedEmail });
+
+            sessionStorage.setItem("pending_forgot_email", trimmedEmail);
+            sessionStorage.setItem("otp_mode", "forgot_password");
+            toast.success("Password reset OTP sent to your email.");
+            return true;
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || error.message || "Failed to send reset OTP";
+            toast.error(errMsg);
+            return false;
+        } finally {
+            set({ isSendingForgotMail: false });
+        }
+    },
+    resetPasswordWithOTP: async (data: { email: string; inputOtp: string; newPassword: string }) => {
+        set({ isResettingPassword: true });
+        try {
+            const { email, inputOtp, newPassword } = data;
+            if (!email || !inputOtp || !newPassword) {
+                toast.error("All fields are required");
+                return false;
+            }
+
+            await apiCaller.post('/auth/resetPassword', {
+                email: email.trim(),
+                inputOtp: inputOtp.trim(),
+                newPassword
+            });
+
+            // Clean up reset session
+            sessionStorage.removeItem("pending_forgot_email");
+            sessionStorage.removeItem("pending_reset_otp");
+            sessionStorage.removeItem("otp_mode");
+
+            toast.success("Password reset successfully! Please sign in.");
+            set({ currentPage: 'dashboard' });
+            return true;
+        } catch (error: any) {
+            const errMsg = error.response?.data?.error || error.message || "Failed to reset password";
+            toast.error(errMsg);
+            return false;
+        } finally {
+            set({ isResettingPassword: false });
         }
     },
     logout: async () => {
@@ -247,6 +286,7 @@ export const userStore = create((set, get: any) => ({
         finally {
             set({ isLoggingOut: false })
         }
-    }
+    },
+    
 })) 
 

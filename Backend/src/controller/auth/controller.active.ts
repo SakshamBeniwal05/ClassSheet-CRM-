@@ -5,6 +5,9 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import type { Role } from "../../generated/prisma/enums.js";
 import ApiError from "../../utils/utils.api.error.js";
 import ApiResponse from "../../utils/utils.api.response.js";
+import otpGenerator from "../../utils/utils.api.otp.js";
+import redisClient from "../../services/redis/service.redis.js";
+import sendMail from "./controller.google.js";
 
 // -------------------------------------------------------------------------
 // Shared cookie options — defined once so login/logout never drift apart
@@ -33,7 +36,7 @@ const newAccessToken = async (id: string) => {
     const accessToken: string = jwt.sign(
         { userId: user.id, role: user.role, organisationId: user.organisationId },
         process.env.ACCESS_TOKEN_VALUE as string,
-        { expiresIn: process.env.ACCESS_TOKEN_EXPIRY as SignOptions["expiresIn"] }
+        { expiresIn: (process.env.ACCESS_TOKEN_EXPIRY || "1d") as any }
     );
 
     return accessToken;
@@ -48,7 +51,7 @@ export const newLoginTokens = async (user: { id: string; role: Role; organisatio
     const refreshToken: string = jwt.sign(
         { userId: user.id },
         process.env.REFRESH_TOKEN_VALUE as string,
-        { expiresIn: process.env.REFRESH_TOKEN_EXPIRY as SignOptions["expiresIn"] }
+        { expiresIn: (process.env.REFRESH_TOKEN_EXPIRY || "7d") as any }
     );
 
     await prisma.user.update({
@@ -144,10 +147,11 @@ const loginUser = async (req: Request, res: Response) => {
                 )
             );
     } catch (error) {
+        console.error("loginUser error:", error);
         if (error instanceof ApiError) {
-            return res.status(400).json({ error: error.message });
+            return res.status(error.statuscode || 400).json({ error: error.message });
         }
-        return res.status(500).json({ error: "Something went wrong" });
+        return res.status(500).json({ error: (error as any)?.message || "Something went wrong" });
     }
 };
 
@@ -167,10 +171,11 @@ const logoutUser = async (req: Request, res: Response) => {
             .clearCookie("refreshToken", refreshCookieOptions) // was "accessToken" — access token was never a cookie
             .json(new ApiResponse(200, {}, "Logged out successfully"));
     } catch (error) {
+        console.error("logoutUser error:", error);
         if (error instanceof ApiError) {
-            return res.status(400).json({ error: error.message });
+            return res.status(error.statuscode || 400).json({ error: error.message });
         }
-        return res.status(500).json({ error: "Something went wrong" });
+        return res.status(500).json({ error: (error as any)?.message || "Something went wrong" });
     }
 };
 
@@ -286,4 +291,201 @@ const refreshSession = async (req: Request, res: Response) => {
     }
 };
 
-export { loginUser, logoutUser, verification, verifySession, refreshSession };
+// -------------------------------------------------------------------------
+// Forgot Password & Password Change Handlers (with OTP)
+// -------------------------------------------------------------------------
+
+/**
+ * Step 1 of Forgot Password:
+ * Validates user existence, generates 6-digit OTP, caches in Redis (10m TTL),
+ * and dispatches OTP email.
+ */
+const forgotPasswordRequest = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+        if (!email || typeof email !== "string" || !email.trim()) {
+            throw new ApiError(400, "Email is required");
+        }
+        const trimmedEmail = email.trim();
+
+        const user = await prisma.user.findFirst({ where: { email: trimmedEmail } });
+        if (!user) {
+            throw new ApiError(404, "User with this email does not exist");
+        }
+
+        const otp = otpGenerator();
+        // Store OTP in Redis with 10-minute expiry (600 seconds)
+        await redisClient.set(`forgot_otp:${trimmedEmail}`, otp, { 'EX': 600 });
+
+        // Dispatch OTP via email (or dev terminal fallback)
+        await sendMail(
+            trimmedEmail,
+            "Password Reset OTP",
+            `Your OTP for password reset is ${otp}. This code is valid for 10 minutes.`
+        );
+
+        return res.status(200).json(
+            new ApiResponse(200, null, "Password reset OTP sent to your email.")
+        );
+    } catch (error) {
+        console.error("forgotPasswordRequest error:", error);
+        if (error instanceof ApiError) {
+            return res.status(error.statuscode || 400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: (error as any)?.message || "Failed to process password reset request" });
+    }
+};
+
+/**
+ * Optional middleware: verifies that the provided OTP for password reset matches Redis.
+ */
+const forgotOtpVerification = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { email, inputOtp } = req.body;
+        if (!email || !inputOtp) {
+            throw new ApiError(400, "Email and OTP are required");
+        }
+        const trimmedEmail = email.trim();
+
+        const storedOtp = await redisClient.get(`forgot_otp:${trimmedEmail}`);
+        if (!storedOtp) {
+            throw new ApiError(400, "OTP has expired or was not requested");
+        }
+
+        if (storedOtp !== inputOtp.toString().trim()) {
+            throw new ApiError(400, "Invalid OTP");
+        }
+
+        return next();
+    } catch (error) {
+        console.error("forgotOtpVerification error:", error);
+        if (error instanceof ApiError) {
+            return res.status(error.statuscode || 400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Something went wrong in forgotOtpVerification" });
+    }
+};
+
+/**
+ * Step 2 of Forgot Password:
+ * Verifies OTP from Redis, hashes newPassword, updates user record in DB,
+ * invalidates existing refresh token, and deletes OTP from Redis.
+ */
+const resetPasswordWithOTP = async (req: Request, res: Response) => {
+    try {
+        const { email, inputOtp, newPassword } = req.body;
+
+        if (!email || !inputOtp || !newPassword) {
+            throw new ApiError(400, "Email, OTP, and new password are required");
+        }
+
+        const trimmedEmail = email.trim();
+
+        if (typeof newPassword !== "string" || newPassword.length < 6) {
+            throw new ApiError(400, "New password must be at least 6 characters long");
+        }
+
+        // Verify OTP from Redis
+        const storedOtp = await redisClient.get(`forgot_otp:${trimmedEmail}`);
+        if (!storedOtp) {
+            throw new ApiError(400, "OTP has expired or was not requested");
+        }
+
+        if (storedOtp !== inputOtp.toString().trim()) {
+            throw new ApiError(400, "Invalid OTP");
+        }
+
+        const user = await prisma.user.findFirst({ where: { email: trimmedEmail } });
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password and clear existing refresh tokens so active sessions are terminated
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordHash: hashedPassword,
+                refreshToken: null,
+            },
+        });
+
+        // Clean up OTP in Redis
+        await redisClient.del(`forgot_otp:${trimmedEmail}`);
+
+        return res.status(200).json(
+            new ApiResponse(200, null, "Password reset successfully. Please log in with your new password.")
+        );
+    } catch (error) {
+        console.error("resetPasswordWithOTP error:", error);
+        if (error instanceof ApiError) {
+            return res.status(error.statuscode || 400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: (error as any)?.message || "Failed to reset password" });
+    }
+};
+
+/**
+ * Authenticated Password Change:
+ * For logged-in users who know their current password.
+ */
+const changePassword = async (req: Request, res: Response) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        const userId = req.user?.userId;
+
+        if (!userId) {
+            throw new ApiError(401, "Not authenticated");
+        }
+
+        if (!oldPassword || !newPassword) {
+            throw new ApiError(400, "Current password and new password are required");
+        }
+
+        if (typeof newPassword !== "string" || newPassword.length < 6) {
+            throw new ApiError(400, "New password must be at least 6 characters long");
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) {
+            throw new ApiError(404, "User not found");
+        }
+
+        const isPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new ApiError(400, "Incorrect current password");
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                passwordHash: hashedPassword,
+            },
+        });
+
+        return res.status(200).json(
+            new ApiResponse(200, null, "Password changed successfully")
+        );
+    } catch (error) {
+        console.error("changePassword error:", error);
+        if (error instanceof ApiError) {
+            return res.status(error.statuscode || 400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: (error as any)?.message || "Failed to change password" });
+    }
+};
+
+export {
+    loginUser,
+    logoutUser,
+    verification,
+    verifySession,
+    refreshSession,
+    forgotPasswordRequest,
+    forgotOtpVerification,
+    resetPasswordWithOTP,
+    changePassword,
+};

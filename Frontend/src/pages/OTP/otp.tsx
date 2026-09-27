@@ -10,23 +10,41 @@ export const OTP = () => {
     const [email, setEmail] = useState<string>("");
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    const { verifyOTPAndRegister, sendRegistrationMail, isRegistering, setCurrentPage } = (userStore as any)();
+    const { verifyOTPAndRegister, sendRegistrationMail, sendForgotPasswordMail, isRegistering, isSendingForgotMail, setCurrentPage } = (userStore as any)();
+
+    const isForgotMode = sessionStorage.getItem("otp_mode") === "forgot_password";
 
     useEffect(() => {
+        const mode = sessionStorage.getItem("otp_mode");
+        if (mode === "forgot_password") {
+            const forgotEmail = sessionStorage.getItem("pending_forgot_email");
+            if (forgotEmail) {
+                setEmail(forgotEmail);
+                return;
+            }
+        }
+
+        const pendingEmail = sessionStorage.getItem("pending_email") || localStorage.getItem("pending_email");
+        if (pendingEmail) {
+            setEmail(pendingEmail);
+            return;
+        }
+
         const detailsStr = localStorage.getItem("registration_details");
         if (detailsStr) {
             try {
                 const details = JSON.parse(detailsStr);
                 if (details.email) {
                     setEmail(details.email);
+                    return;
                 }
             } catch (e) {
                 console.error("Failed to parse registration details", e);
             }
-        } else {
-            toast.error("No registration details found. Redirecting...");
-            setCurrentPage("dashboard");
         }
+
+        toast.error("No active verification session found. Redirecting...");
+        setCurrentPage("dashboard");
     }, [setCurrentPage]);
 
     useEffect(() => {
@@ -80,12 +98,26 @@ export const OTP = () => {
             toast.error("Please enter a valid 6-digit OTP");
             return;
         }
-        await verifyOTPAndRegister(otpCode);
+
+        const mode = sessionStorage.getItem("otp_mode");
+        if (mode === "forgot_password") {
+            sessionStorage.setItem("pending_reset_otp", otpCode);
+            setCurrentPage("reset-password");
+        } else {
+            await verifyOTPAndRegister(otpCode);
+        }
     };
 
     const handleResend = async () => {
         if (resendTimer > 0) return;
-        const success = await sendRegistrationMail(email);
+        const mode = sessionStorage.getItem("otp_mode");
+        let success = false;
+        if (mode === "forgot_password") {
+            success = await sendForgotPasswordMail(email);
+        } else {
+            success = await sendRegistrationMail(email);
+        }
+
         if (success) {
             setResendTimer(30);
             setOtp(Array(6).fill(""));
@@ -94,8 +126,13 @@ export const OTP = () => {
     };
 
     const handleBack = () => {
+        sessionStorage.removeItem("otp_mode");
+        sessionStorage.removeItem("pending_forgot_email");
+        sessionStorage.removeItem("pending_reset_otp");
         setCurrentPage("dashboard"); // Renders Login as userData is null
     };
+
+    const isSubmitting = isRegistering || isSendingForgotMail;
 
     return (
         <div className="h-screen w-full flex items-center justify-center bg-[#191302] text-[#f1e1bf] px-6">
@@ -120,10 +157,10 @@ export const OTP = () => {
 
                     <div className="space-y-2">
                         <h2 className="font-sans font-bold text-2xl tracking-tight text-[#F1E1BF]">
-                            Verification Code
+                            {isForgotMode ? "Reset Verification" : "Verification Code"}
                         </h2>
                         <p className="text-sm text-[#DBCCAB]/80 px-2 leading-relaxed">
-                            We have sent a 6-digit OTP code to <br />
+                            We have sent a 6-digit {isForgotMode ? "password reset " : ""}OTP code to <br />
                             <span className="text-[#E48520] font-semibold">{email || "your email"}</span>.
                         </p>
                     </div>
@@ -141,21 +178,23 @@ export const OTP = () => {
                                     onKeyDown={(e) => handleKeyDown(idx, e)}
                                     className="w-12 h-12 text-center text-xl font-bold rounded-lg input-field text-[#F1E1BF] focus:border-[#DB422A] transition-all bg-[#242424]/80 shadow-inner"
                                     required
-                                    disabled={isRegistering}
+                                    disabled={isSubmitting}
                                 />
                             ))}
                         </div>
 
                         <button
                             type="submit"
-                            disabled={isRegistering}
+                            disabled={isSubmitting}
                             className="w-full py-3 rounded-lg primary-btn font-semibold text-base text-white shadow-lg active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2 cursor-pointer"
                         >
-                            {isRegistering ? (
+                            {isSubmitting ? (
                                 <>
                                     <Loader2 className="w-5 h-5 animate-spin" />
                                     Verifying...
                                 </>
+                            ) : isForgotMode ? (
+                                "Verify Code & Continue"
                             ) : (
                                 "Verify Code & Register"
                             )}

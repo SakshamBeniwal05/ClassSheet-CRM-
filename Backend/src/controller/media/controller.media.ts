@@ -70,6 +70,10 @@ const getMediaByDeal = async (req: Request, res: Response) => {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        if (!dealId || typeof dealId !== "string") {
+            throw new ApiError(400, "Valid Deal ID is required");
+        }
+
         const deal = await prisma.deal.findFirst({
             where: { id: dealId, dealOrganisation: organisationId },
         });
@@ -105,6 +109,10 @@ const updateMedia = async (req: Request, res: Response) => {
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Media ID is required");
         }
 
         const existingMedia = await prisma.media.findFirst({
@@ -154,6 +162,10 @@ const deleteMedia = async (req: Request, res: Response) => {
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Media ID is required");
         }
 
         const existingMedia = await prisma.media.findFirst({

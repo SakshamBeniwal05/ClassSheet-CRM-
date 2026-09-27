@@ -105,7 +105,7 @@ const getParticularDeal = async (req: Request, res: Response) => {
         }
 
         const isOwnerOrAdmin = role === "Owner" || role === "Admin";
-        if (!ALLOWED_DEAL_SEARCH_FIELDS.includes(criteria as DealSearchField)) {
+        if (!criteria || typeof criteria !== "string" || !value || typeof value !== "string" || !ALLOWED_DEAL_SEARCH_FIELDS.includes(criteria as DealSearchField)) {
             throw new ApiError(400, "Invalid search criteria");
         }
 
@@ -168,6 +168,10 @@ const updateDeal = async (req: Request, res: Response) => {
             throw new ApiError(403, "User must belong to an organisation");
         }
 
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Deal ID is required");
+        }
+
         const existingDeal = await prisma.deal.findFirst({
             where: { id, dealOrganisation: organisationId },
         });
@@ -219,6 +223,10 @@ const deleteDeal = async (req: Request, res: Response) => {
 
         if (!organisationId) {
             throw new ApiError(403, "User must belong to an organisation");
+        }
+
+        if (!id || typeof id !== "string") {
+            throw new ApiError(400, "Valid Deal ID is required");
         }
 
         const existingDeal = await prisma.deal.findFirst({

@@ -1,0 +1,216 @@
+================================================================================
+                    CLASSSHEET CRM - MAPPED APPLICATION FLOW
+================================================================================
+
+1. ROUTING & STATE MACHINE ARCHITECTURE
+--------------------------------------------------------------------------------
+CallSheet utilizes a reactive, state-driven SPA routing model managed centrally by 
+Zustand in `userStore.currentPage` and rendered conditionally in `App.tsx`.
+
+Session Gatekeeper:
+- If `userData === null`:
+    * If `currentPage === 'otp'`           ==> Renders <OTP />
+    * If `currentPage === 'reset-password'` ==> Renders <ResetPassword />
+    * Default                              ==> Renders <Login /> (Includes Login, Register, and Forgot Password views)
+- If `userData !== null`:
+    * If `currentPage === 'dashboard'`     ==> Renders <Dashboard />
+    * If `currentPage === 'clients'`       ==> Renders <Clients />
+    * If `currentPage === 'deals'`         ==> Renders <Deals />
+    * If `currentPage === 'reminders'`     ==> Renders <Reminders />
+    * If `currentPage === 'employees'`     ==> Renders <Organisation />
+    * Default                              ==> Renders <Dashboard />
+
+
+================================================================================
+2. VISUAL FLOW: UNAUTHENTICATED AUTHENTICATION & PASSWORD RECOVERY
+================================================================================
+
++-------------------------------------------------------------------------------+
+|                               LOGIN / REGISTER VIEW                           |
+|                         (Frontend/src/pages/Auth/Login/Login.tsx)             |
++-------------------------------------------------------------------------------+
+       |                           |                           |
+       | Tab: "Login"              | Tab: "Register"           | Link: "Forgot?"
+       v                           v                           v
++------------------+       +-------------------+       +-----------------------+
+|  Enter Email &   |       | Select Org Type:  |       | FORGOT PASSWORD VIEW  |
+|     Password     |       | - "New Org"       |       | Enter registered      |
++------------------+       | - "Existing Org"  |       | email address         |
+       |                   | Enter Credentials |       +-----------------------+
+       | Submit            +-------------------+                   |
+       v                             |                             | Submit
++------------------+                 | Submit                      v
+| POST /auth/login |                 v                 +-----------------------+
++------------------+       +---------------------+     | POST                  |
+       |                   | POST                |     | /auth/forgotPassword  |
+       | Success (200)     | /auth/register      |     +-----------------------+
+       | Returns Tokens    |       Verification  |                 |
+       v                   +---------------------+                 | Success (200)
++------------------+                 |                             | OTP saved in Redis
+| Enter Dashboard  |                 | Success (200)               | (10m TTL)
+| (userData set)   |                 | Staged in Redis (10m TTL)   | Mode: "forgot_password"
++------------------+                 v                             v
+                       +-----------------------------------------------+
+                       |               OTP VERIFICATION VIEW           |
+                       |          (Frontend/src/pages/OTP/otp.tsx)     |
+                       +-----------------------------------------------+
+                                               |
+                       +-----------------------+-----------------------+
+                       |                                               |
+                       | Mode: "registration"                          | Mode: "forgot_password"
+                       | User enters 6-digit OTP                       | User enters 6-digit OTP
+                       v                                               v
+       +-------------------------------+               +-------------------------------+
+       | Submit:                       |               | Submit:                       |
+       | POST /auth/registerWithNewOrg |               | Validates 6-digit input       |
+       |  OR                           |               | Saves OTP in sessionStorage   |
+       | POST /auth/newUserRegistration|               | Sets currentPage:             |
+       +-------------------------------+               |   'reset-password'            |
+                       |                               +-------------------------------+
+                       | Success (201)                                 |
+                       | User & Org created in DB                      v
+                       | JWT Tokens minted             +-------------------------------+
+                       v                               |     RESET PASSWORD VIEW       |
+       +-------------------------------+               | (Frontend/src/pages/Auth/     |
+       | Enter Dashboard               |               |     ResetPassword/            |
+       | (userData set, active session)|               |     ResetPassword.tsx)        |
+       +-------------------------------+               +-------------------------------+
+                                                                       |
+                                                                       | User inputs:
+                                                                       | 1. newPassword
+                                                                       | 2. confirmPassword
+                                                                       v
+                                                       +-------------------------------+
+                                                       | CLIENT-SIDE VALIDATION:       |
+                                                       | 1. Length >= 6 characters     |
+                                                       | 2. newPassword === confirmPass|
+                                                       +-------------------------------+
+                                                                       |
+                                                                       | Verified Match
+                                                                       v
+                                                       +-------------------------------+
+                                                       | POST /auth/resetPassword      |
+                                                       | { email, inputOtp,            |
+                                                       |   newPassword }               |
+                                                       +-------------------------------+
+                                                                       |
+                                                                       | Success (200)
+                                                                       | Password updated in DB
+                                                                       | Invalidate stale tokens
+                                                                       v
+                                                       +-------------------------------+
+                                                       | SUCCESS REDIRECT:             |
+                                                       | Cleans up reset session       |
+                                                       | Toast: "Password reset!"      |
+                                                       | Navigates to Sign In          |
+                                                       +-------------------------------+
+
+
+================================================================================
+3. VISUAL FLOW: AUTHENTICATED WORKSPACE & FEATURE ROUTING
+================================================================================
+
+                                    +-----------------------+
+                                    |     APP MOUNT / LOAD  |
+                                    | useEffect: checkAuth()|
+                                    +-----------------------+
+                                                |
+                                                v
+                                    +-----------------------+
+                                    |   GET /auth/refresh   |
+                                    +-----------------------+
+                                     /                     \
+                      401 Unauthorized                     200 OK (Valid Cookie)
+                             /                               \
+                            v                                 v
+                 +----------------------+         +-----------------------+
+                 | Render: Login Screen |         | Store: userData set   |
+                 | (currentPage: 'login')         | Render: Main App Shell|
+                 +----------------------+         +-----------------------+
+                                                              |
+                               +------------------------------+------------------------------+
+                               |                              |                              |
+                               v                              v                              v
+                    +--------------------+         +--------------------+         +--------------------+
+                    |     TOP NAVBAR     |         |     LEFT SIDEBAR   |         |    ACTIVE CANVAS   |
+                    | Org Badge, Profile,|         | Navigation links:  |         | Dynamically loads  |
+                    | Session indicators |         | Dashboard, Clients,|         | component based on |
+                    | Logout trigger     |         | Deals, Reminders,  |         | currentPage        |
+                    +--------------------+         | Team / Employees   |         +--------------------+
+                                                   +--------------------+                    |
+                                                              |                              |
+                                                              v                              |
+                          +------------------------------------------------------------------+
+                          |
+                          +---> currentPage === 'dashboard'
+                          |     - Renders <Dashboard />
+                          |     - Queries: recent deals, metric tallies, reminders
+                          |
+                          +---> currentPage === 'clients'
+                          |     - Renders <Clients />
+                          |     - Queries: GET /api/client
+                          |     - Actions: Add Client Modal, Edit Client, Delete Client
+                          |
+                          +---> currentPage === 'deals'
+                          |     - Renders <Deals />
+                          |     - Queries: GET /api/deal
+                          |     - Actions: Kanban Drag & Drop (PUT /api/deal/:id),
+                          |                Add Deal Modal, Deal Drawer
+                          |                - Sub-tab Notes (GET/POST /api/notes)
+                          |                - Sub-tab Media (Direct ImageKit upload + POST /api/media)
+                          |
+                          +---> currentPage === 'reminders'
+                          |     - Renders <Reminders />
+                          |     - Queries: GET /api/reminder
+                          |     - Actions: Quick Add, Status Toggle (PUT /api/reminder/:id/status), Delete
+                          |
+                          +---> currentPage === 'employees'
+                          |     - Renders <Organisation />
+                          |     - Queries: GET /api/organisation/members
+                          |     - Actions: Generate Invite Token (POST /api/organisation/invite-token),
+                          |                Change Member Role (PATCH /api/organisation/members/:id/:role),
+                          |                Remove Member (DELETE /api/organisation/members/:id)
+                          |
+                          +---> Logout Action
+                                - Triggers POST /api/auth/logout
+                                - Clears memory access token & HTTP-Only refresh cookie
+                                - Sets userData = null, currentPage = 'dashboard'
+                                - Returns to Login View
+
+
+================================================================================
+4. DATA & SERVICE INTERCONNECTION TOPOLOGY
+================================================================================
+
++---------------------------------------------------------------------------------------+
+|                                    CLIENT BROWSER                                     |
+|                                                                                       |
+|  [ React UI Components ] <---> [ Zustand Stores ] <---> [ Axios API Client Interceptor ]
++---------------------------------------------------------------------------------------+
+                                        | (HTTP / JSON / Cookies)
+                                        v
++---------------------------------------------------------------------------------------+
+|                                EXPRESS BACKEND SERVER                                 |
+|                                                                                       |
+|  [ CORS & Cookie Parser ] ---> [ Express Routers ] ---> [ Auth & Verify Middlewares ] |
+|                                                                  |                    |
+|                                       +--------------------------+                    |
+|                                       |                                               |
+|                                       v                                               |
+|                          [ Feature Controllers ]                                      |
+|            (Active, Registration, Client, Deal, Notes, Media, Reminder)               |
++---------------------------------------------------------------------------------------+
+         |                       |                     |                     |
+         v                       v                     v                     v
++-----------------+     +-----------------+   +-----------------+   +-----------------+
+|   POSTGRESQL    |     |   REDIS CLOUD   |   |    IMAGEKIT     |   | GMAIL SMTP      |
+|  (Prisma ORM)   |     | (10m TTL Store) |   |  (Media CDN)    |   |  (Nodemailer)   |
+|                 |     |                 |   |                 |   |                 |
+| - Users         |     | - Registration  |   | - Deal media    |   | - Reg OTPs      |
+| - Organisations |     |   staging cache |   |   attachments   |   | - Forgot OTPs   |
+| - Clients       |     | - Active OTPs   |   | - Direct upload |   | - Dev console   |
+| - Deals         |     | - Password reset|   |   signatures    |   |   fallback      |
+| - Notes         |     |   OTPs          |   |                 |   |                 |
+| - Reminders     |     |                 |   |                 |   |                 |
+| - Media metadata|     |                 |   |                 |   |                 |
++-----------------+     +-----------------+   +-----------------+   +-----------------+

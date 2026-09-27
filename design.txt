@@ -1,0 +1,710 @@
+================================================================================
+                           CLASSSHEET CRM - SYSTEM DESIGN
+================================================================================
+
+1. ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
+CallSheet is an enterprise-grade CRM platform featuring a decoupled architecture:
+- Frontend: Single Page Application (SPA) built with React 18, TypeScript, Vite, 
+  Tailwind CSS, Zustand for state management, Framer Motion, and Lucide icons.
+- Backend: REST API service built with Node.js (ESM), Express 5, and TypeScript.
+- Database: PostgreSQL managed via Prisma ORM 7 with pooled connections (@prisma/adapter-pg).
+- Cache & Session Store: Redis for 10-minute OTP staging and pre-flight registration caches.
+- Media Storage: ImageKit for direct client uploads with backend authentication signatures.
+- Email Service: Nodemailer with Gmail SMTP (App Password / OAuth2) and local dev terminal OTP fallback.
+- Security: Dual JWT token architecture (Short-lived access token + HTTP-Only 7-day refresh token cookie),
+  Bcrypt password hashing (salt rounds: 10), Role-Based Access Control (Owner, Admin, Member, Employee).
+
+
+================================================================================
+2. BACKEND API ENDPOINTS - DATA ENTRY FLOW & OUTPUT SCHEMAS
+================================================================================
+
+--------------------------------------------------------------------------------
+A. AUTHENTICATION & SESSION MANAGEMENT (/api/auth)
+--------------------------------------------------------------------------------
+
+1. POST /api/auth/registerVerification
+   - Purpose: Pre-validates registration details against DB, stages data in Redis (10m TTL),
+     and dispatches a 6-digit OTP to the user's email.
+   - Auth Required: None (Public)
+   - Data Entry Flow (Request Body):
+     {
+       "name": "Jane Doe",                   // String, required for new registration
+       "email": "jane@example.com",          // String, required
+       "password": "Password123!",           // String, required for new registration
+       "registrationPath": "newOrg" | "existingOrg", // String, required
+       "organisationName": "Acme Corp",      // String, required if registrationPath === "newOrg"
+       "inviteToken": "org_inv_xxx"          // String, optional if registrationPath === "existingOrg"
+     }
+     * Note: If only {"email": "..."} is sent without name/password, it acts as Resend OTP.
+   - Process:
+     - Verifies email does not exist in User table.
+     - If newOrg, verifies organisationName does not exist in Organisation table.
+     - If existingOrg with inviteToken, verifies token is valid and unexpired.
+     - Hashes password using bcrypt.
+     - Stores staged payload in Redis: `pending_registration:<email>` (EX: 600s).
+     - Generates 6-digit OTP via crypto.randomInt(100000, 1000000).
+     - Stores OTP in Redis: `otp:<email>` (EX: 600s).
+     - Dispatches email via Nodemailer.
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": null,
+       "message": "Verification successful. OTP sent to your email."
+     }
+   - Output (Error - 400 / 404 / 500):
+     { "error": "User with this email already exists" }
+     { "error": "Organisation already exists" }
+     { "error": "Invalid invite token" }
+
+2. POST /api/auth/registerWithNewOrganisation
+   - Purpose: Verifies OTP via middleware and creates Owner User and new Organisation.
+   - Middleware Chain: [registerVerification, otpVerification, registerWithNewOrganisation]
+   - Auth Required: None (Public, verified via OTP)
+   - Data Entry Flow (Request Body):
+     {
+       "email": "jane@example.com",          // String, required
+       "inputOtp": "123456"                  // String, 6 digits, required
+     }
+   - Process:
+     - registerVerification middleware checks if user already created.
+     - otpVerification middleware checks `otp:<email>` in Redis matches inputOtp; deletes OTP upon match.
+     - registerWithNewOrganisation retrieves `pending_registration:<email>` from Redis.
+     - Creates User with Role "Owner" in DB.
+     - Creates Organisation with ownerId = User.id in DB.
+     - Associates User.organisationId = Organisation.id.
+     - Deletes `pending_registration:<email>` from Redis.
+     - Mints Access Token and Refresh Token; attaches Refresh Token as HTTP-Only cookie.
+   - Output (Success - 201 Created):
+     Set-Cookie: refreshToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+     {
+       "statuscode": 201,
+       "data": {
+         "accessToken": "eyJhbGciOi...",
+         "user": {
+           "id": "uuid-v4",
+           "name": "Jane Doe",
+           "email": "jane@example.com",
+           "role": "Owner",
+           "organisationId": "uuid-v4"
+         }
+       },
+       "message": "New User registered and logged in successfully"
+     }
+
+3. POST /api/auth/newUserRegistration
+   - Purpose: Verifies OTP via middleware and creates Employee user account (joining existing org if invited).
+   - Middleware Chain: [registerVerification, otpVerification, newUserRegistration]
+   - Auth Required: None (Public, verified via OTP)
+   - Data Entry Flow (Request Body):
+     {
+       "email": "john@example.com",          // String, required
+       "inputOtp": "123456"                  // String, 6 digits, required
+     }
+   - Process:
+     - Verifies OTP in Redis; retrieves staged payload.
+     - Creates User with Role "Employee" in DB.
+     - If staged inviteToken was valid, links user to target Organisation.
+     - Clears Redis staged data; mints session tokens.
+   - Output (Success - 201 Created):
+     Set-Cookie: refreshToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+     {
+       "statuscode": 201,
+       "data": {
+         "accessToken": "eyJhbGciOi...",
+         "user": {
+           "id": "uuid-v4",
+           "name": "John Smith",
+           "email": "john@example.com",
+           "role": "Employee",
+           "organisationId": "uuid-v4" | null
+         }
+       },
+       "message": "New User registered and logged in successfully"
+     }
+
+4. POST /api/auth/login
+   - Purpose: Authenticates an existing user via email and password.
+   - Auth Required: None (Public)
+   - Data Entry Flow (Request Body):
+     {
+       "email": "jane@example.com",          // String, required
+       "password": "Password123!"           // String, required
+     }
+   - Process:
+     - Looks up user by email.
+     - Compares bcrypt passwordHash.
+     - Mints Access Token (expires in ACCESS_TOKEN_EXPIRY, e.g. 1d).
+     - Mints Refresh Token (expires in 7d); updates User.refreshToken in DB.
+     - Sets HTTP-Only cookie `refreshToken`.
+   - Output (Success - 200 OK):
+     Set-Cookie: refreshToken=<jwt>; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+     {
+       "statuscode": 200,
+       "data": {
+         "accessToken": "eyJhbGciOi...",
+         "user": {
+           "id": "uuid-v4",
+           "name": "Jane Doe",
+           "email": "jane@example.com",
+           "role": "Owner",
+           "organisationId": "uuid-v4"
+         }
+       },
+       "message": "Logged in successfully"
+     }
+   - Output (Error - 401 Unauthorized):
+     { "error": "Invalid email or password" }
+
+5. GET /api/auth/refresh
+   - Purpose: Silently mints a new Access Token using the HTTP-Only refresh cookie.
+   - Auth Required: HTTP-Only cookie `refreshToken`
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": {
+         "accessToken": "eyJhbGciOi...",
+         "user": { "id": "uuid", "name": "...", "email": "...", "role": "...", "organisationId": "..." }
+       },
+       "message": "Session refreshed successfully"
+     }
+   - Output (Error - 401 Unauthorized):
+     { "error": "No refresh token, please log in again" }
+
+6. POST /api/auth/logout
+   - Purpose: Terminates active user session and clears cookies.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     Clear-Cookie: refreshToken
+     {
+       "statuscode": 200,
+       "data": {},
+       "message": "Logged out successfully"
+     }
+
+7. GET /api/auth/verify
+   - Purpose: Returns the currently authenticated user's profile and verifies token validity.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": { "user": { "id": "...", "name": "...", "email": "...", "role": "...", "organisationId": "..." } },
+       "message": "Session verified successfully"
+     }
+
+8. POST /api/auth/forgotPassword
+   - Purpose: Step 1 of password recovery: verifies user email exists, generates 6-digit OTP,
+     stores in Redis (10m TTL), and dispatches reset email.
+   - Auth Required: None (Public)
+   - Data Entry Flow (Request Body):
+     {
+       "email": "jane@example.com"           // String, required
+     }
+   - Process:
+     - Checks user in DB (returns 404 if not found).
+     - Generates 6-digit OTP.
+     - Sets `forgot_otp:<email>` in Redis with 10-minute expiry (600s).
+     - Sends OTP email via Nodemailer (with terminal console fallback in dev).
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": null,
+       "message": "Password reset OTP sent to your email."
+     }
+   - Output (Error - 404 Not Found):
+     { "error": "User with this email does not exist" }
+
+9. POST /api/auth/resetPassword
+   - Purpose: Step 2 of password recovery: verifies OTP, hashes new password, updates DB,
+     invalidates old sessions by setting refreshToken = null, and deletes Redis OTP.
+   - Auth Required: None (Public, verified via OTP)
+   - Middleware Chain: [forgotOtpVerification, resetPasswordWithOTP]
+   - Data Entry Flow (Request Body):
+     {
+       "email": "jane@example.com",          // String, required
+       "inputOtp": "123456",                 // String, 6 digits, required
+       "newPassword": "NewSecretPassword123!"// String, min 6 chars, required
+     }
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": null,
+       "message": "Password reset successfully. Please log in with your new password."
+     }
+   - Output (Error - 400 Bad Request):
+     { "error": "Invalid OTP" }
+     { "error": "OTP has expired or was not requested" }
+     { "error": "New password must be at least 6 characters long" }
+
+10. POST /api/auth/changePassword
+    - Purpose: Authenticated password change for logged-in users who know their current password.
+    - Auth Required: Bearer Access Token
+    - Data Entry Flow (Request Body):
+      {
+        "oldPassword": "CurrentPassword123!", // String, required
+        "newPassword": "NewPassword456!"      // String, min 6 chars, required
+      }
+    - Output (Success - 200 OK):
+      {
+        "statuscode": 200,
+        "data": null,
+        "message": "Password changed successfully"
+      }
+    - Output (Error - 400 Bad Request):
+      { "error": "Incorrect current password" }
+
+11. POST /api/auth/userOwnnerWithoutOrg
+    - Purpose: Allows a user with the Owner role who has no organisation to create one.
+    - Auth Required: Bearer Access Token (Role must be "Owner")
+    - Data Entry Flow (Request Body):
+      {
+        "orgName": "Apex Technologies"       // String, required
+      }
+    - Output (Success - 201 Created):
+      {
+        "statuscode": 201,
+        "data": { "updatedUser": { ... }, "createdOrg": { ... } },
+        "message": "New Organisation registered successfully"
+      }
+
+12. POST /api/auth/joinOrganisation
+    - Purpose: Allows an unassigned Employee to join an organisation via invite token.
+    - Auth Required: Bearer Access Token (Role must not be "Owner")
+    - Data Entry Flow (Request Body):
+      {
+        "inviteToken": "org_inv_xxx"         // String, required
+      }
+    - Output (Success - 200 OK):
+      {
+        "statuscode": 200,
+        "data": { "updatedUser": { ... } },
+        "message": "Joined organisation successfully"
+      }
+
+
+--------------------------------------------------------------------------------
+B. CLIENT MANAGEMENT (/api/client)
+--------------------------------------------------------------------------------
+
+1. POST /api/client
+   - Purpose: Creates a new client contact for the user's organisation.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     {
+       "name": "Sarah Connor",               // String, required
+       "email": "sarah@cyberdyne.com",       // String, required, unique per org
+       "phone": "+1-555-0199",               // String, optional
+       "company": "Cyberdyne Systems",       // String, optional
+       "address": "Los Angeles, CA",         // String, optional
+       "notes": "Key enterprise stakeholder" // String, optional
+     }
+   - Output (Success - 201 Created):
+     {
+       "statuscode": 201,
+       "data": { "id": "uuid", "name": "...", "email": "...", "organisationId": "..." },
+       "message": "Client created successfully"
+     }
+
+2. GET /api/client
+   - Purpose: Lists all clients belonging to the authenticated user's organisation.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": [ { "id": "...", "name": "...", "email": "...", "deals": [ ... ] } ],
+       "message": "Clients retrieved successfully"
+     }
+
+3. GET /api/client/:criteria/:value
+   - Purpose: Filter/search clients by criteria (e.g. name, email, company).
+   - Parameters: criteria (string), value (string)
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": [ ... ], "message": "Clients found" }
+
+4. PUT /api/client/:id
+   - Purpose: Updates an existing client record.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     { "name": "...", "email": "...", "phone": "...", "company": "...", "address": "...", "notes": "..." }
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": { ... }, "message": "Client updated successfully" }
+
+5. DELETE /api/client/:id
+   - Purpose: Deletes a client and cascades related records.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": { ... }, "message": "Client deleted successfully" }
+
+
+--------------------------------------------------------------------------------
+C. DEAL PIPELINE MANAGEMENT (/api/deal)
+--------------------------------------------------------------------------------
+
+1. POST /api/deal
+   - Purpose: Creates a new sales deal attached to a client.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     {
+       "title": "Enterprise Cloud Migration",// String, required
+       "value": 150000,                      // Number, required
+       "stage": "Lead" | "Contact Made" | "Demo Scheduled" | "Proposal Sent" | "Negotiation" | "Closed Won" | "Closed Lost",
+       "clientId": "uuid",                   // String, required (valid client in org)
+       "closeDate": "2026-12-31T00:00:00Z"   // ISO Date, optional
+     }
+   - Output (Success - 201 Created):
+     { "statuscode": 201, "data": { ... }, "message": "Deal created successfully" }
+
+2. GET /api/deal
+   - Purpose: Retrieves all deals for the organisation with client relations, notes, and media.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": [ ... ], "message": "Deals retrieved successfully" }
+
+3. GET /api/deal/:criteria/:value
+   - Purpose: Search or filter deals by stage, title, or status.
+   - Auth Required: Bearer Access Token
+
+4. PUT /api/deal/:id
+   - Purpose: Updates a deal's stage, value, or close date (drag-and-drop kanban updates).
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     { "stage": "Negotiation", "value": 175000, "closeDate": "..." }
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": { ... }, "message": "Deal updated successfully" }
+
+5. DELETE /api/deal/:id
+   - Purpose: Removes a deal and cleans up associated notes/media.
+   - Auth Required: Bearer Access Token
+
+
+--------------------------------------------------------------------------------
+D. DEAL NOTES & ACTIVITY (/api/notes)
+--------------------------------------------------------------------------------
+
+1. POST /api/notes
+   - Purpose: Adds a rich note to an existing deal.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     {
+       "content": "Discussed security SLA requirements. Client requested ISO 27001 proof.",
+       "dealId": "uuid"                      // String, required
+     }
+   - Output (Success - 201 Created):
+     { "statuscode": 201, "data": { ... }, "message": "Note created successfully" }
+
+2. GET /api/notes/deal/:dealId
+   - Purpose: Lists all chronological notes for a deal.
+   - Auth Required: Bearer Access Token
+
+3. PUT /api/notes/:id
+   - Purpose: Edits the text content of a note.
+   - Data Entry Flow (Request Body): { "content": "Updated text" }
+
+4. DELETE /api/notes/:id
+   - Purpose: Deletes a specific note.
+
+
+--------------------------------------------------------------------------------
+E. DEAL MEDIA & ATTACHMENTS (/api/media)
+--------------------------------------------------------------------------------
+
+1. GET /api/media/auth
+   - Purpose: Generates ImageKit client-side upload security signature, token, and expire timestamp.
+   - Auth Required: Bearer Access Token
+   - Output (Success - 200 OK):
+     { "token": "...", "expire": 178873..., "signature": "..." }
+
+2. POST /api/media
+   - Purpose: Saves media metadata in PostgreSQL after successful upload to ImageKit.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     {
+       "fileUrl": "https://ik.imagekit.io/.../contract.pdf",
+       "fileId": "imagekit_file_id",
+       "fileName": "contract.pdf",
+       "fileType": "application/pdf",
+       "dealId": "uuid"
+     }
+   - Output (Success - 201 Created):
+     { "statuscode": 201, "data": { ... }, "message": "Media record saved" }
+
+3. GET /api/media/deal/:dealId
+   - Purpose: Returns all files attached to a deal.
+
+4. DELETE /api/media/:id
+   - Purpose: Deletes the file from ImageKit cloud storage and removes the record from DB.
+
+
+--------------------------------------------------------------------------------
+F. REMINDERS & TASK ALERTS (/api/reminder)
+--------------------------------------------------------------------------------
+
+1. POST /api/reminder
+   - Purpose: Schedules a reminder for the authenticated user.
+   - Auth Required: Bearer Access Token
+   - Data Entry Flow (Request Body):
+     {
+       "title": "Follow up on proposal feedback", // String, required
+       "reminderDate": "2026-09-15T10:00:00Z",    // ISO Date, required
+       "dealId": "uuid"                           // String, optional
+     }
+   - Output (Success - 201 Created):
+     { "statuscode": 201, "data": { ... }, "message": "Reminder created successfully" }
+
+2. GET /api/reminder
+   - Purpose: Retrieves all reminders scheduled for the logged-in user.
+   - Output (Success - 200 OK):
+     { "statuscode": 200, "data": [ ... ], "message": "Reminders retrieved" }
+
+3. PUT /api/reminder/:id/status
+   - Purpose: Toggles reminder completion status (Pending <-> Completed).
+   - Data Entry Flow (Request Body): { "status": "COMPLETED" | "PENDING" }
+
+4. DELETE /api/reminder/:id
+   - Purpose: Deletes a reminder.
+
+
+--------------------------------------------------------------------------------
+G. ORGANISATION & TEAM MANAGEMENT (/api/organisation)
+--------------------------------------------------------------------------------
+
+1. GET /api/organisation
+   - Purpose: Fetches organisation details (Name, Owner, Created Date, Member count).
+   - Auth Required: Bearer Access Token
+
+2. POST /api/organisation/invite-token
+   - Purpose: Generates or rotates a 7-day invite token for onboarding new team members.
+   - Auth Required: Bearer Access Token (Role must be "Owner" or "Admin")
+   - Output (Success - 200 OK):
+     {
+       "statuscode": 200,
+       "data": { "inviteToken": "inv_a8b9c0...", "expiresAt": "2026-09-14T..." },
+       "message": "Invite token generated successfully"
+     }
+
+3. GET /api/organisation/members
+   - Purpose: Lists all members belonging to the current organisation.
+   - Auth Required: Bearer Access Token
+   - Output: Array of members with id, name, email, role, joined date.
+
+4. DELETE /api/organisation/members/:memberId
+   - Purpose: Removes a member from the organisation.
+   - Auth Required: Bearer Access Token (Owner only)
+
+5. PATCH /api/organisation/members/:memberId/:updatedRole
+   - Purpose: Updates a member's role (Admin, Member, Employee).
+   - Auth Required: Bearer Access Token (Owner only)
+
+
+================================================================================
+3. FRONTEND PAGES & SEGMENTED DATA ENTRY FLOWS
+================================================================================
+
+--------------------------------------------------------------------------------
+PAGE 1: AUTHENTICATION (Login.tsx)
+--------------------------------------------------------------------------------
+Path: / (when unauthenticated)
+Components / Segments:
+
+- Segment 1: Tab Navigation Toggle
+  - UI: SubSelectToggleDemo animated switch.
+  - Options: "Login" | "Register".
+
+- Segment 2: Login Form
+  - Entries Offered:
+    * Email Address (type: email, required)
+    * Password (type: password, required, with show/hide Eye toggle)
+    * "Forgot?" Button (triggers Segment 5: Forgot Password view)
+    * "Access Dashboard" Action Button
+  - State: isLoggingIn (shows loading spinner & disabled inputs)
+  - Output: On success -> stores accessToken in memory, updates userData in Zustand store,
+    sets currentPage to 'dashboard'.
+
+- Segment 3: Register Form - New Organisation ("newOrg" Sub-tab)
+  - Entries Offered:
+    * Full Name (type: text, required)
+    * Email Address (type: email, required)
+    * Password (type: password, required, with show/hide Eye toggle)
+    * Organisation Name (type: text, required)
+    * "Create Account" Action Button
+  - Action: Dispatches registerVerification payload to backend; upon 200 OK, transitions
+    currentPage to 'otp'.
+
+- Segment 4: Register Form - Existing Organisation ("existingOrg" Sub-tab)
+  - Entries Offered:
+    * Full Name (type: text, required)
+    * Email Address (type: email, required)
+    * Password (type: password, required, with show/hide Eye toggle)
+    * Invite Token (type: text, optional - can also join later)
+    * "Register & Join" Action Button
+  - Action: Dispatches registerVerification payload; transitions currentPage to 'otp'.
+
+- Segment 5: Forgot Password View
+  - Trigger: Clicking "Forgot?" in the login form.
+  - Entries Offered:
+    * "Back to Sign In" Action Button (returns to Login form)
+    * Email Address (type: email, required)
+    * "Send Verification Code" Action Button (shows Loader2 when isSendingForgotMail is true)
+  - Action: Calls userStore.sendForgotPasswordMail(email). Upon success, stores email in
+    sessionStorage (otp_mode = "forgot_password") and sets currentPage to 'otp'.
+
+
+--------------------------------------------------------------------------------
+PAGE 2: OTP VERIFICATION (otp.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'otp'
+Components / Segments:
+
+- Segment 1: Header & Context
+  - Dynamic Display:
+    * Registration Mode: "Verification Code" | "We have sent a 6-digit OTP code to <email>"
+    * Forgot Password Mode: "Reset Verification" | "We have sent a 6-digit password reset OTP code to <email>"
+  - "Back" Button: cleans up staging session and returns to login.
+
+- Segment 2: 6-Digit OTP Input Grid
+  - 6 individual numeric input fields.
+  - Auto-advance to next box on input; backspace jumps to previous box.
+  - Paste listener: parses complete 6-digit string from clipboard and fills all boxes.
+
+- Segment 3: Verification Action Button
+  - Dynamic Button Text:
+    * Registration Mode: "Verify Code & Register" (calls verifyOTPAndRegister)
+    * Forgot Password Mode: "Verify Code & Continue" (stores pending_reset_otp and sets currentPage to 'reset-password')
+  - Loading State: Shows spinner during network verification.
+
+- Segment 4: Resend OTP Countdown
+  - 30-second cooldown timer.
+  - When timer reaches 0: displays clickable "Resend Code" button.
+  - Action: re-dispatches OTP based on current otp_mode.
+
+
+--------------------------------------------------------------------------------
+PAGE 3: RESET PASSWORD (ResetPassword.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'reset-password'
+Components / Segments:
+
+- Segment 1: Header
+  - Displays user email being reset (from sessionStorage).
+  - "Back to Login" Button.
+
+- Segment 2: New Password Input
+  - Input: password (required, minimum 6 characters).
+  - Show/Hide Eye toggle button.
+
+- Segment 3: Confirm New Password Input
+  - Input: confirm password (required).
+  - Show/Hide Eye toggle button.
+
+- Segment 4: Client-Side Password Match Indicator
+  - Real-time visual validation:
+    * Green badge with CheckCircle2: "Passwords match"
+    * Red badge: "Passwords do not match"
+
+- Segment 5: Submit Action
+  - Validation: Frontend enforces length >= 6 and exact password equality before network dispatch.
+  - Action: Calls resetPasswordWithOTP({ email, inputOtp, newPassword }).
+  - Output: On success -> toast message, cleans up sessionStorage, redirects to Login page.
+
+
+--------------------------------------------------------------------------------
+PAGE 4: DASHBOARD (Dashboard.tsx)
+--------------------------------------------------------------------------------
+Path: / (when authenticated, currentPage === 'dashboard')
+Components / Segments:
+
+- Segment 1: Top Metrics Bar
+  - Key performance indicators: Total Pipeline Value, Active Deals, Won Deals Ratio, Total Clients.
+  - Quick action buttons ("+ New Deal", "+ New Client").
+
+- Segment 2: Pipeline Funnel / Conversion Overview
+  - Stage-by-stage distribution of active deals.
+
+- Segment 3: Urgent Reminders Card
+  - Highlights tasks due today or overdue with quick-complete checkboxes.
+
+- Segment 4: Recent Activity Feed
+  - Chronological timeline of latest notes, status changes, and newly closed deals.
+
+
+--------------------------------------------------------------------------------
+PAGE 5: CLIENT DIRECTORY (Clients.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'clients'
+Components / Segments:
+
+- Segment 1: Search & Filter Toolbar
+  - Search input (queries name, company, email).
+  - Sort dropdown (Alphabetical, Date Added, Active Deals).
+
+- Segment 2: Client Grid / Table
+  - Client cards showing Name, Company, Email, Phone, Deal count.
+  - Action buttons: View Deals, Edit, Delete.
+
+- Segment 3: Create / Edit Client Modal
+  - Entries Offered: Full Name, Email, Phone, Company, Address, Notes.
+  - Action: clientStore.createClient() or clientStore.updateClient().
+
+- Segment 4: Client Deletion Confirmation Modal
+  - Prompts confirmation with warning about associated deals.
+
+
+--------------------------------------------------------------------------------
+PAGE 6: DEAL PIPELINE (Deals.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'deals'
+Components / Segments:
+
+- Segment 1: Kanban Board Columns
+  - Columns: Lead -> Contact Made -> Demo Scheduled -> Proposal Sent -> Negotiation -> Closed Won -> Closed Lost.
+  - Displays column summary (deal count and total dollar volume).
+
+- Segment 2: Deal Card
+  - Displays Title, Client Name, Value in currency, Priority badge, Due date.
+  - Interactive drag-and-drop between stages.
+
+- Segment 3: Create Deal Modal
+  - Entries Offered: Title, Client selector (dropdown of existing clients), Deal Value, Initial Stage, Target Close Date.
+
+- Segment 4: Deal Detail Slide-over / Modal
+  - Section A: Overview & Stage Selector.
+  - Section B: Activity Notes (Chronological notes with textarea to add new notes).
+  - Section C: Media Attachments (ImageKit direct file upload and file gallery).
+
+
+--------------------------------------------------------------------------------
+PAGE 7: REMINDERS & TASKS (Reminders.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'reminders'
+Components / Segments:
+
+- Segment 1: Quick Add Widget
+  - Entries Offered: Reminder Title, Due Date, Due Time, Linked Deal (optional dropdown).
+  - "+ Add Reminder" Action button.
+
+- Segment 2: Filter Tabs
+  - "All", "Pending", "Completed", "Overdue".
+
+- Segment 3: Task Item
+  - Title, Date/Time badge, Status checkbox, Delete trash button.
+
+
+--------------------------------------------------------------------------------
+PAGE 8: ORGANISATION & TEAM (Organisation.tsx)
+--------------------------------------------------------------------------------
+Path: Controlled via userStore.currentPage === 'employees'
+Components / Segments:
+
+- Segment 1: Organisation Info Header
+  - Org Name, Owner Name, Plan badge, Created Date.
+
+- Segment 2: Invite Token Section (Owner/Admin only)
+  - Displays current active invite token with "Copy Invite Link" button.
+  - "Rotate / Generate New Token" button.
+
+- Segment 3: Team Roster Table
+  - Columns: Member Name, Email, Role, Status, Actions.
+  - Role dropdown selector (Admin, Member, Employee) - Owner only.
+  - "Remove Member" action button with confirmation dialog.

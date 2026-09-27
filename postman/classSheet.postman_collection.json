@@ -11,7 +11,7 @@
 			"description": "Authentication and user onboarding routes",
 			"item": [
 				{
-					"name": "Send Registration OTP Mail",
+					"name": "Register Verification / Send OTP",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -19,14 +19,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"jane.doe@example.com\"\n}"
+							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"registrationPath\": \"newOrg\",\n  \"organisationName\": \"Acme Industries\"\n}"
 						},
 						"url": {
-							"raw": "{{baseUrl}}/api/auth/registrationMail",
+							"raw": "{{baseUrl}}/api/auth/registerVerification",
 							"host": ["{{baseUrl}}"],
-							"path": ["api", "auth", "registrationMail"]
+							"path": ["api", "auth", "registerVerification"]
 						},
-						"description": "Send a verification OTP code to the requested email."
+						"description": "Verify registration details against DB, stage them in Redis with 10-minute expiry, and dispatch OTP to user email."
 					},
 					"response": []
 				},
@@ -39,14 +39,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"Password123!\",\n  \"organisationName\": \"Acme Industries\",\n  \"inputOtp\": \"123456\"\n}"
+							"raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"inputOtp\": \"123456\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/registerWithNewOrganisation",
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "auth", "registerWithNewOrganisation"]
 						},
-						"description": "Register a new Owner user along with a new organisation."
+						"description": "Verify OTP middleware and create Owner user & organisation from Redis-staged data."
 					},
 					"response": []
 				},
@@ -59,14 +59,14 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"John Smith\",\n  \"email\": \"john.smith@example.com\",\n  \"password\": \"SecurePassword456!\",\n  \"inputOtp\": \"123456\"\n}"
+							"raw": "{\n  \"email\": \"john.smith@example.com\",\n  \"inputOtp\": \"123456\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/newUserRegistration",
 							"host": ["{{baseUrl}}"],
 							"path": ["api", "auth", "newUserRegistration"]
 						},
-						"description": "Register a regular employee account without an organisation."
+						"description": "Verify OTP middleware and create employee account from Redis-staged data."
 					},
 					"response": []
 				},
@@ -117,6 +117,70 @@
 							"path": ["api", "auth", "refresh"]
 						},
 						"description": "Silently mint a new access token using the HTTP-only refresh cookie."
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password - Request OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/forgotPassword",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "forgotPassword"]
+						},
+						"description": "Send a 6-digit OTP to user email for password reset with 10-minute expiry."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password with OTP",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"inputOtp\": \"123456\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/resetPassword",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "resetPassword"]
+						},
+						"description": "Verify OTP and set a new password, invalidating old sessions."
+					},
+					"response": []
+				},
+				{
+					"name": "Change Password (Authenticated)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+						},
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"oldPassword\": \"Password123!\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/auth/changePassword",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "auth", "changePassword"]
+						},
+						"description": "Change password for an already authenticated user."
 					},
 					"response": []
 				},

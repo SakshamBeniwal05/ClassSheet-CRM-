@@ -165,7 +165,7 @@ export const Organisation: React.FC = () => {
                                                             </div>
                                                         )}
                                                     </td>
-                                                )}
+                                                )}Team Directory
                                             </tr>
                                         )
                                     })
@@ -177,26 +177,26 @@ export const Organisation: React.FC = () => {
 
                 {/* Team Distribution & Insights */}
                 <div className="grid grid-cols-12 gap-6">
-                    <div className="col-span-12 xl:col-span-8 bg-tSecondary border border-colorNeutral/10 rounded-xl p-6">
-                        <h3 className="font-bold text-tInverted text-base mb-4">Team Performance Metrics</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-40">
-                            <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
-                                <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Active Members</span>
-                                <div className="text-3xl text-colorPrimary font-black">{members?.length || 1}</div>
-                                <div className="text-[10px] text-colorPrimary/70 font-semibold">+12% vs last week</div>
-                            </div>
-                            <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
-                                <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Avg. Deals/Representative</span>
-                                <div className="text-3xl text-colorTertiary font-black">14.2</div>
-                                <div className="text-[10px] text-colorTertiary/70 font-semibold">Target: 15.0</div>
-                            </div>
-                            <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
-                                <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Meetings Handled</span>
-                                <div className="text-3xl text-tInverted font-black">128</div>
-                                <div className="text-[10px] text-tPrimary/60">Across all active projects</div>
+                        <div className="col-span-12 xl:col-span-8 bg-tSecondary border border-colorNeutral/10 rounded-xl p-6">
+                            <h3 className="font-bold text-tInverted text-base mb-4">Team Performance Metrics</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-40">
+                                <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
+                                    <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Active Members</span>
+                                    <div className="text-3xl text-colorPrimary font-black">{members?.length || 1}</div>
+                                    <div className="text-[10px] text-colorPrimary/70 font-semibold">+12% vs last week</div>
+                                </div>
+                                <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
+                                    <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Avg. Deals/Representative</span>
+                                    <div className="text-3xl text-colorTertiary font-black">14.2</div>
+                                    <div className="text-[10px] text-colorTertiary/70 font-semibold">Target: 15.0</div>
+                                </div>
+                                <div className="bg-colorSecondary/40 rounded-lg p-4 flex flex-col justify-between border border-colorNeutral/20">
+                                    <span className="text-tPrimary text-xs font-semibold uppercase tracking-wider">Meetings Handled</span>
+                                    <div className="text-3xl text-tInverted font-black">128</div>
+                                    <div className="text-[10px] text-tPrimary/60">Across all active projects</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
                     <div className="col-span-12 xl:col-span-4 bg-tSecondary border border-colorNeutral/10 rounded-xl p-6 border-l-4 border-colorPrimary">
                         <h3 className="font-bold text-tInverted text-base mb-4">Admin Controls</h3>
